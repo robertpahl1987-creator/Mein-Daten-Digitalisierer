@@ -22,10 +22,10 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.webkit.WebViewAssetLoader
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private lateinit var web: WebView
     private var fileCallback: ValueCallback<Array<Uri>>? = null
@@ -229,6 +229,31 @@ class MainActivity : ComponentActivity() {
                     "window.__ocrDone(${JSONObject.quote(id)},${JSONObject.quote(text)})", null
                 )
             }
+        }
+
+        // ----- Fingerabdruck -----
+        @JavascriptInterface
+        fun bioAvailable(): Boolean = Bio.available(this@MainActivity)
+
+        @JavascriptInterface
+        fun bioEnabled(): Boolean = Bio.enabled(this@MainActivity) && Bio.available(this@MainActivity)
+
+        @JavascriptInterface
+        fun bioDisable() = Bio.disable(this@MainActivity)
+
+        @JavascriptInterface
+        fun bioEnable(id: String, rawB64: String) {
+            val raw = Base64.decode(rawB64, Base64.DEFAULT)
+            runOnUiThread { Bio.enable(this@MainActivity, raw) { r -> bioDone(id, r) } }
+        }
+
+        @JavascriptInterface
+        fun bioUnlock(id: String) {
+            runOnUiThread { Bio.unlock(this@MainActivity) { r -> bioDone(id, r) } }
+        }
+
+        private fun bioDone(id: String, r: String) = runOnUiThread {
+            web.evaluateJavascript("window.__bioDone(${JSONObject.quote(id)},${JSONObject.quote(r)})", null)
         }
 
         @JavascriptInterface
