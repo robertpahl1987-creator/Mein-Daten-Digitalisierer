@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mein Daten-Digitalisierer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: ruhig, sachlich, verlässlich – wie eine sauber geführte Akte.
+   IDEA: ein Aktenordner mit Register: Alt (vor Stichtag) und Neu (danach).
+   PICTURE: die Arbeitsfläche selbst – Akten als Karteikarten mit farbiger Registerkante.
+   COLOUR and TYPE: Weiß/Nacht, Tinte, Karminrot = Alt-Forderung, Preußischblau = Neu; Literata.
+   LAYOUT: eine ruhige Spalte, unten Navigation auf dem Handy, oben ab 900px. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1217);--ink:light-dark(#10131a,#e9ebf1);--mut:light-dark(#5a606e,#9ca3b4);--line:light-dark(#e2e4ea,#272c37);--card:light-dark(#f5f6f8,#171b23);--alt:light-dark(#c1121f,#ff6f78);--neu:light-dark(#0b4f8a,#7fb9ff);--warn:light-dark(#8a5a00,#f2c14e);--ok:light-dark(#1d7349,#63d49c);--field:light-dark(#ffffff,#11151c)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Literata,Georgia,serif;overflow-x:clip}
+h1,h2,h3{line-height:1.1;text-wrap:balance;margin:0 0 .5em;font-weight:600}
+h1{font-size:clamp(28px,6vw,40px)}h2{font-size:22px}h3{font-size:17px}
+a{color:var(--neu)}
+.wrap{max-width:860px;margin:0 auto;padding:20px max(4vw,14px) 110px}
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:12px max(4vw,14px);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.top b{font-size:18px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--bg);border-top:1px solid var(--line);z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+.nav button{border:0;background:none;color:var(--mut);font:inherit;font-size:13px;padding:10px 4px 12px;min-height:56px}
+.nav button[aria-current=true]{color:var(--ink);font-weight:600;box-shadow:inset 0 3px 0 var(--ink)}
+.nav .plus{color:var(--neu);font-weight:600}
+@media(min-width:900px){.nav{position:sticky;top:57px;bottom:auto;max-width:860px;margin:0 auto;border:0;border-bottom:1px solid var(--line)}.wrap{padding-bottom:60px}}
+button,.btn{font:inherit;font-size:15px;min-height:44px;padding:9px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.pri,button.pri{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button.red{background:var(--alt);border-color:var(--alt);color:#fff}
+button.ghost{background:none}
+button:focus-visible,.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--neu);outline-offset:2px}
+button:disabled{opacity:.5}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);min-height:44px}
+textarea{line-height:1.45;resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:0 14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.note{font-size:14px;color:var(--mut)}
+.card{background:var(--card);border-radius:14px;padding:16px;margin:12px 0}
+.figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.fig{border-radius:14px;padding:14px;background:var(--card);border-top:5px solid var(--mut)}
+.fig.alt{border-color:var(--alt)}.fig.neu{border-color:var(--neu)}.fig.chk{border-color:var(--warn)}
+.fig b{display:block;font-size:clamp(20px,5vw,30px);white-space:nowrap;line-height:1.2}
+.fig span{font-size:13px;color:var(--mut)}
+@media(max-width:520px){.figs{grid-template-columns:1fr}.fig{display:flex;justify-content:space-between;align-items:baseline;gap:10px}}
+.akte{display:block;width:100%;text-align:left;border:1px solid var(--line);border-left:7px solid var(--mut);background:var(--bg);border-radius:12px;padding:12px 14px;margin:10px 0}
+.k-alt{border-left-color:var(--alt)}.k-neu{border-left-color:var(--neu)}.k-q{border-left-color:var(--warn)}.k-gemischt{border-left-color:var(--alt);border-image:linear-gradient(var(--alt) 50%,var(--neu) 50%) 0 0 0 1}.k-verf{border-left-color:var(--ok)}
+.akte .ln{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--mut)}
+.akte strong{display:block;font-size:17px;margin:2px 0}
+.badge{display:inline-block;font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--card);border:1px solid var(--line);white-space:nowrap}
+.b-alt{color:var(--alt);border-color:currentColor}.b-neu{color:var(--neu);border-color:currentColor}.b-q{color:var(--warn);border-color:currentColor}.b-verf{color:var(--ok);border-color:currentColor}.b-gemischt{color:var(--alt);border-color:currentColor}.b-teil{color:var(--warn);border-color:currentColor}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 8px}
+.chips button{flex:none;min-height:38px;padding:6px 14px;border-radius:99px;font-size:14px}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0}
+.chain span{background:var(--card);border-radius:8px;padding:4px 10px;font-size:14px}
+.chain i{font-style:normal;color:var(--mut)}
+.brief{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0;opacity:.78}
+.brief.newest{opacity:1;border:2px solid var(--ink);box-shadow:0 6px 18px -10px rgba(0,0,0,.35)}
+.brief .hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.brief dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:8px 0;font-size:14px}
+.brief dt{color:var(--mut)}.brief dd{margin:0}
+.todo{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:12px 0}
+.todo div{flex:1 1 220px}
+.todo small{display:block;color:var(--mut)}
+.frist{color:var(--alt);font-weight:600}
+.banner{border-left:5px solid var(--warn);background:var(--card);padding:12px 14px;border-radius:10px;margin:12px 0}
+.lockbox{max-width:440px;margin:8vh auto;padding:0 18px}
+.code{font-size:clamp(18px,5vw,24px);letter-spacing:.06em;background:var(--card);border:2px dashed var(--ink);border-radius:12px;padding:16px;text-align:center;word-break:break-all;font-weight:600}
+.meter{height:6px;border-radius:9px;background:var(--line);margin-top:6px;overflow:hidden}.meter i{display:block;height:100%;background:var(--alt);width:0;transition:width .2s}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+.modal>div{background:var(--bg);width:min(720px,100%);max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px max(4vw,16px) 28px}
+@media(min-width:720px){.modal{align-items:center}.modal>div{border-radius:16px}}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:30;font-size:15px;max-width:90vw}
+.split{height:10px;border-radius:9px;display:flex;overflow:hidden;background:var(--line);margin:6px 0}.split i{display:block}
+.warnlist{margin:8px 0;padding-left:20px;font-size:14px}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.thumbs button{min-height:36px;font-size:13px;padding:4px 10px}
+img.scan{max-width:100%;border-radius:8px;border:1px solid var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><div class="lockbox"><h1>Mein Daten-Digitalisierer</h1><p class="note">Wird geladen …</p></div></div>
+<div id="modal"></div>
+<script>
+{
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const te=new TextEncoder(),td=new TextDecoder();
+const b64=buf=>{const a=buf instanceof Uint8Array?buf:new Uint8Array(buf);let s='';for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode.apply(null,a.subarray(i,i+32768));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+const nid=()=>Array.from(rnd(12),x=>x.toString(16).padStart(2,'0')).join('');
+const ITER=600000,CH=180000;
+const ROLLEN={glaeubiger:'Gläubiger (Firma)',inkasso:'Inkassobüro',anwalt:'Anwalt des Gläubigers',gericht:'Gericht',gv:'Gerichtsvollzieher',verfahren:'Eigenes Verfahren (Insolvenzgericht, Verwalter, Kanzlei)',behoerde:'Behörde / Amt',sonst:'Sonstige'};
+const TYPEN={rechnung:'Rechnung',mahnung:'Mahnung / Zahlungsaufforderung',mahnbescheid:'Mahnbescheid',vb:'Vollstreckungsbescheid',pfaendung:'Pfändung / Vollstreckungsmaßnahme',klage:'Klage / Ladung / sonstiges Gerichtsschreiben',info:'Information / Sonstiges'};
+const GT=new Set(['mahnbescheid','vb','pfaendung','klage']);
+const KL={alt:'Alt-Forderung',neu:'Neu · selbst zahlen',gemischt:'Alt + Neu gemischt','?':'Prüfen',verf:'Eigenes Verfahren',teil:'Geteilt'};
+const KC={alt:'alt',neu:'neu',gemischt:'gemischt','?':'q',verf:'verf',teil:'teil'};
+const DEF={kind:'settings',stichtag:'2026-11-04',insoGericht:'',insoGerichtAdr:'',insoAz:'',verwalter:'',verwalterMail:'',verwalterAdr:'',kanzlei:'',kanzleiMail:'',name:'',adresse:'',lockMin:5};
+
+let KEY=null,META=null,view={v:'home'},lastAct=Date.now(),hiddenAt=0,fails=0,blockUntil=0,filt='alle',query='';
+const E=new Map();
+const app=$('#app');
+
+/* ---------- Krypto ---------- */
+async function kdf(pw,salt,iter){const base=await crypto.subtle.importKey('raw',te.encode(pw),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+const aesKey=raw=>crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt']);
+async function seal(key,bytes){const iv=rnd(12);const c=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,bytes);return{iv:b64(iv),c:b64(c)}}
+async function unseal(key,o){return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(o.iv)},key,unb64(o.c)))}
+const sealJ=o=>seal(KEY,te.encode(JSON.stringify(o)));
+const unsealJ=async o=>JSON.parse(td.decode(await unseal(KEY,o)));
+const ALPH='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newCode=()=>Array.from(rnd(25),x=>ALPH[x&31]).join('').match(/.{5}/g).join('-');
+const normCode=s=>String(s).toUpperCase().replace(/[^A-Z0-9]/g,'');
+function strength(p){let s=0;if(p.length>=12)s++;if(p.length>=16)s++;if(/[a-z]/.test(p)&&/[A-Z]/.test(p))s++;if(/\d/.test(p))s++;if(/[^A-Za-z0-9]/.test(p))s++;return s}
+
+/* ---------- Speicher: Cloud (Supabase) oder nur dieses Gerät ---------- */
+const AB=window.AndroidBridge||null;
+const LS={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}},del:k=>{try{localStorage.removeItem(k)}catch{}}};
+const Local={db:null,
+ open(){return this.db||(this.db=new Promise((res,rej)=>{const r=indexedDB.open('mein-daten-digitalisierer',1);r.onupgradeneeded=()=>r.result.createObjectStore('docs');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))},
+ req(mode,f){return this.open().then(db=>new Promise((res,rej)=>{const t=db.transaction('docs',mode),r=f(t.objectStore('docs'));t.oncomplete=()=>res(r.result);t.onerror=()=>rej(t.error)}))},
+ get(c,id){return this.req('readonly',s=>s.get(c+'/'+id))},
+ set(c,id,body){return this.req('readwrite',s=>s.put(body,c+'/'+id))},
+ del(c,id){return this.req('readwrite',s=>s.delete(c+'/'+id))},
+ list(c){return this.open().then(db=>new Promise((res,rej)=>{const out=[],t=db.transaction('docs','readonly'),rq=t.objectStore('docs').openCursor(IDBKeyRange.bound(c+'/',c+'/￿'));rq.onsuccess=()=>{const cu=rq.result;if(cu){out.push({id:cu.key.slice(c.length+1),...cu.value});cu.continue()}};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error)}))}};
+const Cloud={url:'',key:'',at:'',exp:0,
+ cfg(){this.url=(LS.get('sb_url')||'').trim().replace(/\/+$/,'');this.key=(LS.get('sb_key')||'').trim();return!!(this.url&&this.key)},
+ async auth(body,grant){let r;try{r=await withT(fetch(`${this.url}/auth/v1/token?grant_type=${grant}`,{method:'POST',headers:{apikey:this.key,'Content-Type':'application/json'},body:JSON.stringify(body)}))}catch(e){throw new Error('Keine Verbindung zum Server')}
+  const j=await r.json().catch(()=>({}));if(!r.ok){if(grant==='refresh_token')LS.del('sb_rt');throw Object.assign(new Error(r.status===400?'E-Mail oder Konto-Passwort falsch':(j.error_description||j.msg||'Anmeldung fehlgeschlagen')),{code:'auth'})}
+  this.at=j.access_token;this.exp=Date.now()+((j.expires_in||3600)-60)*1000;LS.set('sb_rt',j.refresh_token);if(j.user?.email)LS.set('sb_email',j.user.email);return j},
+ login(email,password){return this.auth({email,password},'password')},
+ async token(){if(this.at&&Date.now()<this.exp)return this.at;const rt=LS.get('sb_rt');if(!rt)throw Object.assign(new Error('Nicht angemeldet'),{code:'auth'});await this.auth({refresh_token:rt},'refresh_token');return this.at},
+ logout(){this.at='';this.exp=0;LS.del('sb_rt')},
+ async rq(path,opt={},ms=30000){const t=await this.token();let r;try{r=await withT(fetch(`${this.url}/rest/v1/${path}`,{...opt,headers:{apikey:this.key,Authorization:'Bearer '+t,'Content-Type':'application/json',...(opt.headers||{})}}),ms)}catch(e){throw new Error(e.message.startsWith('Zeit')?e.message:'Keine Verbindung zum Server')}
+  if(r.status===401){this.at='';throw Object.assign(new Error('Anmeldung abgelaufen'),{code:'auth'})}
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.message||('Serverfehler '+r.status))}return r},
+ async get(c,id){const a=await(await this.rq(`vault_docs?select=body&coll=eq.${c}&id=eq.${encodeURIComponent(id)}`)).json();return a[0]?.body},
+ async set(c,id,body){await this.rq('vault_docs?on_conflict=user_id,coll,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({coll:c,id,body})},60000)},
+ async del(c,id){await this.rq(`vault_docs?coll=eq.${c}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'})},
+ async list(c){const out=[],step=c==='blobs'?15:500;for(let o=0;;o+=step){const a=await(await this.rq(`vault_docs?select=id,body&coll=eq.${c}&order=id&limit=${step}&offset=${o}`,{},60000)).json();for(const x of a)out.push({id:x.id,...(x.body||{})});if(a.length<step)break}return out}};
+const mode=()=>LS.get('mode')||'';
+const B=()=>mode()==='cloud'?Cloud:Local;
+let chain=Promise.resolve();
+const serial=f=>(chain=chain.then(f,f));
+const withT=(p,ms=20000)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Zeitüberschreitung – keine Verbindung')),ms))]);
+async function put(o){E.set(o.id,o);const body=await sealJ(o);await serial(()=>B().set('entries',o.id,body))}
+async function del(id){E.delete(id);await serial(()=>B().del('entries',id))}
+async function loadAll(){E.clear();const docs=await B().list('entries');for(const d of docs){const{id,...body}=d;try{const o=await unsealJ(body);o.id=id;E.set(id,o)}catch(e){console.warn('Eintrag nicht lesbar',id)}}if(!E.has('settings'))E.set('settings',{...DEF,id:'settings'})}
+async function compress(file){const bmp=await createImageBitmap(file);const m=1800,s=Math.min(1,m/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*s);cv.height=Math.round(bmp.height*s);const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(bmp,0,0,cv.width,cv.height);const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.72));return new Uint8Array(await blob.arrayBuffer())}
+async function prep(file){const name=file.name||'scan',type=file.type||'';
+ if(type.startsWith('image/'))return{name,type:'image/jpeg',bytes:await compress(file)};
+ if(type==='application/pdf'||/\.pdf$/i.test(name)){if(file.size>8e6)throw new Error('PDF ist größer als 8 MB');return{name,type:'application/pdf',bytes:new Uint8Array(await file.arrayBuffer())}}
+ throw new Error('Nur Fotos oder PDF-Dateien')}
+async function storeFile(pf){const{iv,c}=await seal(KEY,pf.bytes);const fid=nid(),n=Math.ceil(c.length/CH);
+ for(let i=0;i<n;i++){const body={c:c.slice(i*CH,(i+1)*CH)};await serial(()=>B().set('blobs',fid+'_'+i,body))}
+ return{fid,name:pf.name,type:pf.type,n,iv,size:pf.bytes.length}}
+async function loadFile(f){let c='';for(let i=0;i<f.n;i++){const d=await B().get('blobs',f.fid+'_'+i);if(!d)throw new Error('Datei unvollständig');c+=d.c}return unseal(KEY,{iv:f.iv,c})}
+async function dropFile(f){for(let i=0;i<f.n;i++)await serial(()=>B().del('blobs',f.fid+'_'+i))}
+/* Texterkennung direkt auf dem Handy (nur in der App) */
+const ocrWait=new Map();window.__ocrDone=(id,t)=>{const f=ocrWait.get(id);if(f){ocrWait.delete(id);f(String(t||''))}};
+const ocr=(bytes,type)=>new Promise(res=>{const id=nid();ocrWait.set(id,res);try{AB.ocr(id,b64(bytes),type)}catch(e){ocrWait.delete(id);res('')}})
+
+/* ---------- Datum & Geld ---------- */
+const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const dd=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/864e5);
+const addD=(a,n)=>new Date(Date.parse(a)+n*864e5).toISOString().slice(0,10);
+const addY=(a,n)=>{const d=new Date(a);d.setFullYear(d.getFullYear()+n);return d.toISOString().slice(0,10)};
+const fd=s=>s?s.split('-').reverse().join('.'):'–';
+const eur=n=>(n||0).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+const pnum=s=>{if(typeof s==='number')return s;s=String(s||'').replace(/[^\d,.-]/g,'');if(!s)return 0;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');return Math.round(parseFloat(s)*100)/100||0};
+const isoFrom=(d,m,y)=>{y=+y;if(y<100)y+=2000;return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`};
+
+/* ---------- Modell ---------- */
+const ST=()=>E.get('settings')||{...DEF,id:'settings'};
+const normAz=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const dOf=b=>b.bdatum||b.rdatum||(b.created||'').slice(0,10);
+const akteKey=b=>b.akte||(normAz(b.az)?'az:'+normAz(b.az):'id:'+b.id);
+const isGer=b=>GT.has(b.typ)||b.rolle==='gericht'||b.rolle==='gv';
+function isVerf(b){const s=ST();return b.rolle==='verfahren'||(!!normAz(s.insoAz)&&normAz(b.az)===normAz(s.insoAz))}
+function classB(b){const st=ST().stichtag;if(isVerf(b))return{k:'verf',why:'Schreiben aus dem eigenen Verfahren'};
+ const von=b.lvon||b.lbis,bis=b.lbis||b.lvon;
+ if(von){if(bis<st)return{k:'alt',why:'Leistung vor dem Stichtag'};if(von>=st)return{k:'neu',why:'Leistung ab dem Stichtag'};const tot=dd(von,bis)+1,a=dd(von,st);return{k:'teil',a:a/tot,why:`${a} von ${tot} Tagen liegen vor dem Stichtag`}}
+ if(b.rdatum)return b.rdatum<st?{k:'alt',why:'Rechnungsdatum vor dem Stichtag'}:{k:'?',why:'Rechnung nach dem Stichtag, aber kein Leistungszeitraum – bitte prüfen'};
+ if(b.bdatum&&b.bdatum<st)return{k:'alt',why:'Schreiben stammt von vor dem Stichtag'};
+ return{k:'?',why:'kein Leistungs- oder Rechnungsdatum'}}
+function amt(list){const w=list.filter(x=>x.b.betrag>0);if(!w.length)return 0;if(w[0].b.typ==='rechnung')return w.filter(x=>x.b.typ==='rechnung').reduce((s,x)=>s+x.b.betrag*(x.f??1),0);return w[0].b.betrag*(w[0].f??1)}
+function akten(){const m=new Map(),all=[...E.values()];
+ for(const b of all.filter(o=>o.kind==='brief')){const k=akteKey(b);if(!m.has(k))m.set(k,{key:k,briefe:[]});m.get(k).briefe.push(b)}
+ for(const a of m.values()){
+  a.briefe.sort((x,y)=>dOf(y).localeCompare(dOf(x))||(y.created||'').localeCompare(x.created||''));
+  a.neuest=a.briefe[0];a.meta=all.find(o=>o.kind==='aktemeta'&&o.key===a.key)||null;
+  a.pays=all.filter(o=>o.kind==='zahlung'&&o.key===a.key).sort((x,y)=>y.datum.localeCompare(x.datum));
+  a.cls=a.briefe.map(b=>({b,c:classB(b)}));
+  const ks=new Set(a.cls.map(x=>x.c.k).filter(k=>k!=='?'));
+  let k;if(ks.has('verf'))k='verf';else if(!ks.size)k='?';else if(ks.size===1)k=[...ks][0]==='teil'?'gemischt':[...ks][0];else k='gemischt';
+  a.auto=k;a.k=a.meta?.ov||k;
+  for(const x of a.cls){if(x.c.k==='verf')continue;if(a.meta?.ov)x.c={k:a.meta.ov,why:'von dir manuell festgelegt'};else if(x.c.k==='?'&&(k==='alt'||k==='neu'))x.c={k,why:'über das Aktenzeichen der Akte zugeordnet'}}
+  a.chain=[];for(const b of [...a.briefe].reverse())if(b.firma&&!a.chain.some(c=>c.firma===b.firma))a.chain.push({firma:b.firma,rolle:b.rolle,d:dOf(b)});
+  a.glaeubiger=a.chain[0]?.firma||'Unbekannter Absender';a.aktuell=a.neuest.firma||'';
+  a.az=(a.briefe.find(b=>b.az)||{}).az||'';
+  const AL=[],NL=[];for(const x of a.cls){if(x.c.k==='alt')AL.push({b:x.b});else if(x.c.k==='neu')NL.push({b:x.b});else if(x.c.k==='teil'){AL.push({b:x.b,f:x.c.a});NL.push({b:x.b,f:1-x.c.a})}}
+  a.alt=amt(AL);a.neu=amt(NL);a.paid=a.pays.reduce((s,p)=>s+p.betrag,0);a.offen=Math.max(0,a.neu-a.paid);
+  a.ger=a.briefe.some(isGer);a.done=a.meta?.status==='erledigt';
+  a.text=[a.glaeubiger,a.aktuell,a.az,...a.briefe.map(b=>`${b.az} ${b.firma} ${b.notiz||''}`)].join(' ').toLowerCase()}
+ return[...m.values()].sort((x,y)=>dOf(y.neuest).localeCompare(dOf(x.neuest)))}
+const fristOf=b=>(b.typ==='mahnbescheid'||b.typ==='vb')&&(b.zust||b.bdatum)?addD(b.zust||b.bdatum,14):'';
+function todos(A){const st=ST().stichtag,out=[];
+ for(const a of A){if(a.done||a.k==='verf'||a.k==='neu')continue;
+  for(const x of a.cls){const b=x.b;if(b.done||x.c.k==='verf'||dOf(b)<st)continue;
+   if(isGer(b))out.push({a,b,t:'gericht',frist:fristOf(b)});
+   else if(x.c.k==='alt'&&b.rolle!=='behoerde')out.push({a,b,t:'mail',frist:''})}}
+ return out.sort((x,y)=>(x.frist||'9999').localeCompare(y.frist||'9999'))}
+
+/* ---------- Oberfläche: Grundgerüst ---------- */
+function toast(t,ms=2800){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),ms)}
+function modal(html){$('#modal').innerHTML=`<div class="modal" role="dialog" aria-modal="true"><div>${html}<div class="row"><button class="ghost" data-close>Schließen</button></div></div></div>`;$('#modal [data-close]').onclick=closeModal;$('#modal .modal').onclick=e=>{if(e.target.classList.contains('modal'))closeModal()}}
+const closeModal=()=>{$('#modal').innerHTML=''};
+function ask(text,yes='Ja',danger=false){return new Promise(res=>{modal(`<h2>${esc(text)}</h2><div class="row"><button class="${danger?'red':'pri'}" id="askY">${esc(yes)}</button></div>`);$('#askY').onclick=()=>{closeModal();res(true)};$('#modal [data-close]').onclick=()=>{closeModal();res(false)}})}
+const MIME={pdf:'application/pdf',json:'application/json',csv:'text/csv',jpg:'image/jpeg',txt:'text/plain'};
+const toBlob=(data,fn)=>data instanceof Blob?data:new Blob([data],{type:MIME[fn.split('.').pop()]||'application/octet-stream'});
+async function save(filename,data){const blob=toBlob(data,filename);
+ if(AB){try{const r=AB.saveFile(filename,blob.type,b64(await blob.arrayBuffer()));toast(r==='ok'?'Gespeichert unter Downloads › Mein Daten-Digitalisierer':r,4000);return r==='ok'}catch(e){toast('Speichern fehlgeschlagen');return false}}
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),8000);return true}
+async function share(filename,data){const blob=toBlob(data,filename);if(!AB)return save(filename,blob);try{AB.shareFile(filename,blob.type,b64(await blob.arrayBuffer()))}catch(e){toast('Teilen nicht möglich')}}
+async function copy(t){if(AB){try{AB.copy(t);toast('Kopiert');return}catch{}}try{await navigator.clipboard.writeText(t);toast('Kopiert')}catch{toast('Kopieren nicht möglich – Text bitte markieren')}}
+const busy=(btn,on,txt)=>{if(!btn)return;btn.disabled=on;if(txt)btn.textContent=txt};
+
+function shell(inner){
+ const tabs=[['home','Übersicht'],['akten','Akten'],['neu','+ Erfassen'],['mehr','Einstellungen']];
+ app.innerHTML=`<header class="top"><b>Mein Daten-Digitalisierer</b><button id="lockBtn" class="ghost" aria-label="Jetzt sperren">Sperren</button></header>
+ <nav class="nav">${tabs.map(([v,l])=>`<button data-go="${v}" class="${v==='neu'?'plus':''}" aria-current="${view.v===v||(v==='akten'&&view.v==='akte')}">${l}</button>`).join('')}</nav>
+ <main class="wrap">${inner}</main>`;
+ $('#lockBtn').onclick=lock;$$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+ $$('[data-akte]').forEach(b=>b.onclick=()=>go('akte',{key:b.dataset.akte}));
+ window.scrollTo(0,0)}
+function go(v,extra={}){view={v,...extra};closeModal();render()}
+function render(){if(!KEY)return;({home:vHome,akten:vAkten,akte:vAkte,neu:vNeu,mehr:vMehr}[view.v]||vHome)()}
+const badge=k=>`<span class="badge b-${KC[k]||'q'}">${esc(KL[k]||k)}</span>`;
+function akteCard(a){const amount=a.k==='neu'?a.offen:a.k==='gemischt'?a.alt+a.offen:a.alt;
+ const neuNach=dOf(a.neuest)>=ST().stichtag&&a.k!=='neu'&&a.k!=='verf';
+ return `<button class="akte k-${KC[a.k]}" data-akte="${esc(a.key)}"><div class="ln">${badge(a.k)}${a.done?'<span class="badge">erledigt</span>':''}<span>neuestes: ${fd(dOf(a.neuest))}${neuNach?' · <b style="color:var(--alt)">nach Stichtag</b>':''}</span></div>
+ <strong>${esc(a.glaeubiger)}</strong>${a.aktuell&&a.aktuell!==a.glaeubiger?`<div class="note">jetzt bei: ${esc(a.aktuell)}</div>`:''}
+ <div class="ln"><span>${a.az?'Az. '+esc(a.az):'ohne Aktenzeichen'} · ${a.briefe.length} Schreiben</span><span class="num">${amount?eur(amount):''}</span></div></button>`}
+
+/* ---------- Übersicht ---------- */
+function vHome(){const s=ST(),A=akten(),T=todos(A);
+ const alt=A.filter(a=>(a.k==='alt'||a.k==='gemischt')&&!a.done),neu=A.filter(a=>(a.k==='neu'||a.k==='gemischt')&&a.offen>0&&!a.done),q=A.filter(a=>a.k==='?'&&!a.done);
+ const sAlt=alt.reduce((x,a)=>x+a.alt,0),sNeu=neu.reduce((x,a)=>x+a.offen,0);
+ const rsb=addY(s.stichtag,3),mon=Math.max(0,Math.round(dd(today(),rsb)/30.44));
+ const fae=neu.map(a=>{const b=a.cls.find(x=>(x.c.k==='neu'||x.c.k==='teil')&&x.b.faellig);return b?{a,f:b.b.faellig}:null}).filter(Boolean).sort((x,y)=>x.f.localeCompare(y.f));
+ shell(`${!s.insoAz||!s.name?`<div class="banner"><b>Noch einrichten:</b> Trag unter Einstellungen dein Insolvenzgericht, das Aktenzeichen, den Verwalter und deine Kanzlei ein. Die Vorlagen brauchen diese Angaben. <div class="row"><button class="pri" data-go2="mehr">Jetzt eintragen</button></div></div>`:''}
+ ${mode()==='local'&&(!s.lastBackup||dd(s.lastBackup,today())>7)?`<div class="banner"><b>Nur auf diesem Gerät gespeichert.</b> Speichere eine Sicherung oder zieh in die Cloud um, damit bei Handyverlust nichts verloren geht.<div class="row"><button class="pri" data-go2="mehr">Zu den Einstellungen</button></div></div>`:''}
+ <h1>Deine Übersicht</h1>
+ <p class="note">Stichtag (Eröffnung): <b>${fd(s.stichtag)}</b>${s.insoAz?` · Az. ${esc(s.insoAz)}`:''}<br>Restschuldbefreiung voraussichtlich ab ${fd(rsb)} – noch etwa ${mon} Monate.</p>
+ <div class="figs"><div class="fig alt"><span>Alt-Forderungen (${alt.length})</span><b class="num">${eur(sAlt)}</b><span>läuft über den Verwalter</span></div>
+ <div class="fig neu"><span>Neu, selbst zahlen (${neu.length})</span><b class="num">${eur(sNeu)}</b><span>offen</span></div>
+ <div class="fig chk"><span>Zu prüfen</span><b>${q.length}</b><span>Akten ohne klares Datum</span></div></div>
+ <h2>Jetzt handeln ${T.length?`(${T.length})`:''}</h2>
+ ${T.length?T.map(t=>`<div class="todo"><div><b>${esc(t.b.firma||t.a.glaeubiger)}</b> ${t.t==='gericht'?'<span class="badge b-alt">Gericht</span>':'<span class="badge b-alt">schreibt trotz Insolvenz</span>'}<small>${esc(TYPEN[t.b.typ]||'')} vom ${fd(dOf(t.b))}${t.b.az?' · Az. '+esc(t.b.az):''}${t.frist?` · <span class="frist">Frist bis ${fd(t.frist)}</span>`:''}</small></div>
+  <button class="pri" data-do="${t.t}" data-b="${t.b.id}">${t.t==='gericht'?'Widerspruch / Antwort':'Hinweis-E-Mail'}</button></div>`).join(''):'<p class="note">Nichts offen. Neue Schreiben von Alt-Gläubigern oder Gerichten erscheinen hier.</p>'}
+ ${fae.length?`<h2 style="margin-top:24px">Selbst zahlen – nächste Fälligkeiten</h2>${fae.slice(0,6).map(x=>`<div class="todo"><div><b>${esc(x.a.aktuell||x.a.glaeubiger)}</b><small>fällig ${fd(x.f)}${x.f<today()?' · <span class="frist">überfällig</span>':''}</small></div><span class="num">${eur(x.a.offen)}</span></div>`).join('')}`:''}
+ <h2 style="margin-top:24px">Zuletzt geändert</h2>
+ ${A.length?A.slice(0,5).map(akteCard).join(''):`<div class="card"><p>Noch keine Schreiben erfasst. Fang am besten mit dem neuesten Brief an.</p><button class="pri" data-go2="neu">Erstes Schreiben erfassen</button></div>`}`);
+ $$('[data-go2]').forEach(b=>b.onclick=()=>go(b.dataset.go2));
+ $$('[data-do]').forEach(b=>b.onclick=()=>{const br=E.get(b.dataset.b);b.dataset.do==='gericht'?courtModal(br):mailModal(br)})}
+
+/* ---------- Akten-Liste ---------- */
+function vAkten(){const A=akten();const F={alle:()=>true,alt:a=>a.k==='alt'||a.k==='gemischt',neu:a=>a.k==='neu'||a.k==='gemischt','?':a=>a.k==='?',ger:a=>a.ger,verf:a=>a.k==='verf',done:a=>a.done};
+ const list=A.filter(F[filt]||F.alle).filter(a=>!query||a.text.includes(query.toLowerCase()));
+ shell(`<h1>Akten</h1><input id="q" type="search" placeholder="Suchen: Firma, Aktenzeichen, Notiz" value="${esc(query)}" aria-label="Akten durchsuchen">
+ <div class="chips">${[['alle','Alle'],['alt','Vor Stichtag'],['neu','Ab Stichtag'],['?','Prüfen'],['ger','Gericht'],['verf','Eigenes Verfahren'],['done','Erledigt']].map(([k,l])=>`<button data-f="${k}" aria-pressed="${filt===k}">${l} (${A.filter(F[k]).length})</button>`).join('')}</div>
+ <div id="list">${list.length?list.map(akteCard).join(''):'<p class="note">Keine Akten in dieser Auswahl.</p>'}</div>`);
+ const q=$('#q');q.oninput=()=>{query=q.value;const L=akten().filter(F[filt]||F.alle).filter(a=>!query||a.text.includes(query.toLowerCase()));$('#list').innerHTML=L.length?L.map(akteCard).join(''):'<p class="note">Nichts gefunden.</p>';$$('#list [data-akte]').forEach(b=>b.onclick=()=>go('akte',{key:b.dataset.akte}))};
+ $$('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;vAkten()})}
+
+/* ---------- Akte ---------- */
+function vAkte(){const a=akten().find(x=>x.key===view.key);if(!a)return go('akten');const st=ST().stichtag;
+ const tot=a.alt+a.neu||1;
+ shell(`<button class="ghost" data-go2="akten">← Alle Akten</button>
+ <h1 style="margin-top:12px">${esc(a.glaeubiger)}</h1>
+ <p>${badge(a.k)} ${a.az?`<span class="note">Az. ${esc(a.az)}</span>`:''}</p>
+ ${a.chain.length>1?`<div class="chain">${a.chain.map((c,i)=>`${i?'<i>→</i>':''}<span>${esc(c.firma)} <small class="note">${fd(c.d)}</small></span>`).join('')}</div>`:''}
+ <div class="card">${a.k==='verf'?'<p>Schreiben aus deinem eigenen Insolvenzverfahren. Originale bis zur Restschuldbefreiung aufbewahren.</p>':`
+  ${a.alt?`<div class="ln" style="display:flex;justify-content:space-between"><span>Alt-Forderung (vor ${fd(st)})</span><b class="num" style="color:var(--alt)">${eur(a.alt)}</b></div>`:''}
+  ${a.neu?`<div style="display:flex;justify-content:space-between"><span>Neu, selbst zu zahlen</span><b class="num" style="color:var(--neu)">${eur(a.neu)}</b></div><div style="display:flex;justify-content:space-between"><span>davon bezahlt</span><span class="num">${eur(a.paid)}</span></div><div style="display:flex;justify-content:space-between"><span>noch offen</span><b class="num">${eur(a.offen)}</b></div>`:''}
+  ${a.alt&&a.neu?`<div class="split" aria-hidden="true"><i style="width:${a.alt/tot*100}%;background:var(--alt)"></i><i style="width:${a.neu/tot*100}%;background:var(--neu)"></i></div>`:''}
+  ${a.alt?'<p class="note">Alt-Forderungen nicht selbst bezahlen – sie laufen über den Insolvenzverwalter.</p>':''}
+  ${!a.alt&&!a.neu?'<p class="note">Kein Betrag erfasst.</p>':''}`}
+  <div class="grid2"><div><label for="ov">Einstufung</label><select id="ov"><option value="">Automatisch (${esc(KL[a.auto])})</option><option value="alt" ${a.meta?.ov==='alt'?'selected':''}>Alt – vor Stichtag</option><option value="neu" ${a.meta?.ov==='neu'?'selected':''}>Neu – ab Stichtag</option></select></div>
+  <div><label for="stt">Status</label><select id="stt"><option value="offen">offen</option><option value="erledigt" ${a.done?'selected':''}>erledigt</option></select></div></div></div>
+ <div class="row"><button class="pri" data-newin>+ Schreiben zu dieser Akte</button>${ST().kanzleiMail?'<button data-kanzlei>An Kanzlei weiterleiten</button>':''}</div>
+ <h2 style="margin-top:22px">Schreiben (${a.briefe.length})</h2>
+ ${a.cls.map((x,i)=>{const b=x.b;return `<article class="brief ${i===0?'newest':''}"><div class="hd"><b>${i===0?'Aktuellstes Schreiben · ':''}${esc(TYPEN[b.typ]||'Schreiben')}</b>${badge(x.c.k)}</div>
+  <dl><dt>Von</dt><dd>${esc(b.firma||'–')} <span class="note">(${esc(ROLLEN[b.rolle]||'')})</span></dd><dt>Datum</dt><dd>${fd(b.bdatum)}${b.zust?` · zugestellt ${fd(b.zust)}`:''}</dd>
+  ${b.az?`<dt>Zeichen</dt><dd>${esc(b.az)}</dd>`:''}${b.lvon||b.lbis?`<dt>Leistung</dt><dd>${fd(b.lvon)} – ${fd(b.lbis)}</dd>`:''}${b.rdatum?`<dt>Rechnung</dt><dd>${fd(b.rdatum)}</dd>`:''}
+  ${b.betrag?`<dt>Betrag</dt><dd class="num">${eur(b.betrag)}</dd>`:''}${b.faellig?`<dt>Fällig</dt><dd>${fd(b.faellig)}</dd>`:''}${fristOf(b)?`<dt>Frist</dt><dd class="frist">${fd(fristOf(b))}</dd>`:''}
+  ${b.notiz?`<dt>Notiz</dt><dd>${esc(b.notiz)}</dd>`:''}<dt>Warum</dt><dd class="note">${esc(x.c.why)}</dd>${b.done?`<dt>Erledigt</dt><dd>${esc(b.doneNote||'ja')}</dd>`:''}</dl>
+  ${(b.files||[]).length?`<div class="thumbs">${b.files.map((f,j)=>`<button data-file="${b.id}:${j}">${f.type==='application/pdf'?'PDF':'Foto'} ${j+1} ansehen</button>`).join('')}</div>`:''}
+  <div class="row">${x.c.k!=='verf'&&x.c.k!=='neu'?(isGer(b)?`<button class="pri" data-court="${b.id}">Widerspruch / Antwort ans Gericht</button>`:`<button class="pri" data-mail="${b.id}">Hinweis-E-Mail</button>`):''}
+  <button data-edit="${b.id}">Bearbeiten</button><button data-donet="${b.id}">${b.done?'Wieder öffnen':'Erledigt'}</button><button class="ghost" data-del="${b.id}">Löschen</button></div></article>`}).join('')}
+ ${a.neu?`<h2 style="margin-top:22px">Zahlungen</h2>${a.pays.map(p=>`<div class="todo"><div>${fd(p.datum)}<small>${esc(p.notiz||'')}</small></div><span class="num">${eur(p.betrag)}</span><button class="ghost" data-delp="${p.id}" aria-label="Zahlung löschen">✕</button></div>`).join('')||'<p class="note">Noch keine Zahlung erfasst.</p>'}
+ <form id="payF" class="card"><div class="grid2"><div><label for="pd">Datum</label><input id="pd" type="date" value="${today()}" required></div><div><label for="pb">Betrag (€)</label><input id="pb" inputmode="decimal" placeholder="z. B. 49,99" required></div></div><label for="pn">Notiz</label><input id="pn" placeholder="z. B. Überweisung, Rate 1"><div class="row"><button class="pri">Zahlung speichern</button></div></form>`:''}`);
+ $$('[data-go2]').forEach(b=>b.onclick=()=>go(b.dataset.go2));
+ const meta=()=>a.meta?{...a.meta}:{id:nid(),kind:'aktemeta',key:a.key};
+ $('#ov').onchange=async e=>{const m=meta();m.ov=e.target.value||'';await put(m);vAkte()};
+ $('#stt').onchange=async e=>{const m=meta();m.status=e.target.value;await put(m);toast('Status gespeichert')};
+ $('[data-newin]').onclick=()=>go('neu',{preset:{akte:a.key,firma:a.aktuell,az:a.az}});
+ const kz=$('[data-kanzlei]');if(kz)kz.onclick=()=>kanzleiModal(a);
+ $$('[data-mail]').forEach(b=>b.onclick=()=>mailModal(E.get(b.dataset.mail)));
+ $$('[data-court]').forEach(b=>b.onclick=()=>courtModal(E.get(b.dataset.court)));
+ $$('[data-edit]').forEach(b=>b.onclick=()=>go('neu',{edit:b.dataset.edit}));
+ $$('[data-donet]').forEach(b=>b.onclick=async()=>{const o={...E.get(b.dataset.donet)};o.done=!o.done;o.doneNote=o.done?'am '+fd(today()):'';await put(o);vAkte()});
+ $$('[data-del]').forEach(b=>b.onclick=async()=>{const o=E.get(b.dataset.del);if(!await ask('Dieses Schreiben samt Fotos endgültig löschen?','Endgültig löschen',true))return;for(const f of o.files||[])await dropFile(f);await del(o.id);toast('Gelöscht');akten().some(x=>x.key===a.key)?vAkte():go('akten')});
+ $$('[data-delp]').forEach(b=>b.onclick=async()=>{if(!await ask('Zahlung löschen?','Löschen',true))return;await del(b.dataset.delp);vAkte()});
+ $$('[data-file]').forEach(b=>b.onclick=()=>{const[id,j]=b.dataset.file.split(':');showFile(E.get(id).files[+j])});
+ const pf=$('#payF');if(pf)pf.onsubmit=async e=>{e.preventDefault();const v=pnum($('#pb').value);if(!v)return toast('Bitte Betrag eingeben');await put({id:nid(),kind:'zahlung',key:a.key,datum:$('#pd').value,betrag:v,notiz:$('#pn').value.trim()});toast('Zahlung gespeichert');vAkte()}}
+async function showFile(f){modal('<p class="note">Wird entschlüsselt …</p>');try{const bytes=await loadFile(f);
+ if(f.type.startsWith('image/')){const url=URL.createObjectURL(new Blob([bytes],{type:f.type}));modal(`<img class="scan" src="${url}" alt="Scan des Schreibens"><div class="row"><button id="dlF">Herunterladen</button></div>`);$('#dlF').onclick=()=>save((f.name||'scan').replace(/\.\w+$/,'')+'.jpg',new Blob([bytes]))}
+ else{modal(`<h2>PDF-Dokument</h2><p class="note">${esc(f.name)} · ${Math.round(f.size/1024)} KB. PDFs lassen sich hier nicht direkt anzeigen.</p><div class="row"><button class="pri" id="dlF">Entschlüsselt herunterladen</button></div>`);$('#dlF').onclick=()=>save(f.name.endsWith('.pdf')?f.name:f.name+'.pdf',new Blob([bytes]))}}
+ catch(e){modal(`<p>Datei konnte nicht geladen werden: ${esc(e.message)}</p>`)}}
+
+/* ---------- Erfassen ---------- */
+function parseText(t){const r={},L=t.split(/\n/).map(s=>s.trim()).filter(Boolean);
+ const lab=re=>{const m=t.match(re);return m?m[1].trim():''};
+ r.az=lab(/(?:Aktenzeichen|Gesch(?:ä|ae)ftszeichen|Gesch(?:ä|ae)ftsnummer|Unser Zeichen|Unser Az\.?|Az\.|Vorgangs(?:nummer|-Nr\.?)|Forderungs(?:nummer|-Nr\.?)|Kunden(?:nummer|-Nr\.?)|Vertrags(?:nummer|-Nr\.?)|Rechnungs(?:nummer|-Nr\.?))\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{2,28}[A-Za-z0-9])/i);
+ const D=re=>{const m=t.match(re);return m?isoFrom(m[1],m[2],m[3]):''};
+ const dre='(\\d{1,2})\\.(\\d{1,2})\\.(\\d{2,4})';
+ r.rdatum=D(new RegExp('Rechnungsdatum\\s*:?\\s*'+dre,'i'));
+ r.faellig=D(new RegExp('(?:zahlbar bis|f(?:ä|ae)llig (?:am|bis)|sp(?:ä|ae)testens (?:bis )?(?:zum )?|bis zum)\\s*:?\\s*'+dre,'i'));
+ r.zust=D(new RegExp('zugestellt am\\s*:?\\s*'+dre,'i'));
+ const zr=t.match(new RegExp('(?:Leistungszeitraum|Abrechnungszeitraum|Zeitraum)\\s*:?\\s*(?:vom\\s*)?'+dre+'\\s*(?:-|–|bis)\\s*'+dre,'i'));
+ if(zr){r.lvon=isoFrom(zr[1],zr[2],zr[3]);r.lbis=isoFrom(zr[4],zr[5],zr[6])}else{r.lvon=D(new RegExp('Leistungsdatum\\s*:?\\s*'+dre,'i'));r.lbis=r.lvon}
+ r.bdatum=D(new RegExp('(?:,\\s*den|Datum\\s*:?)\\s*'+dre,'i'))||(()=>{const ds=[...t.matchAll(new RegExp(dre,'g'))].map(m=>isoFrom(m[1],m[2],m[3])).filter(d=>d<=today()).sort();return ds.pop()||''})();
+ const am=t.match(/(?:Gesamtbetrag|Gesamtforderung|offener Betrag|offene Forderung|zu zahlender Betrag|Rechnungsbetrag|Forderungsbetrag|Summe|Gesamtsumme|Hauptforderung)[^\d\n]{0,25}(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+ if(am)r.betrag=am[1];else{const all=[...t.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:€|EUR)|(?:€|EUR)\s*(\d{1,3}(?:\.\d{3})*,\d{2})/g)].map(m=>pnum(m[1]||m[2]));if(all.length)r.betrag=String(Math.max(...all)).replace('.',',')}
+ r.email=(t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)||[''])[0];
+ const lc=t.toLowerCase();
+ r.typ=/vollstreckungsbescheid/.test(lc)?'vb':/mahnbescheid/.test(lc)?'mahnbescheid':/pf(ä|ae)ndungs|überweisungsbeschluss|vollstreckungsauftrag|gerichtsvollzieher/.test(lc)?'pfaendung':/klage|ladung|termin zur m(ü|ue)ndlichen/.test(lc)?'klage':/mahnung|zahlungserinnerung|zahlungsaufforderung|letzte aufforderung/.test(lc)?'mahnung':/rechnung/.test(lc)?'rechnung':'info';
+ r.rolle=/insolvenzverwalter|treuhänder|insolvenzgericht|in dem insolvenzverfahren/.test(lc)?'verfahren':/gerichtsvollzieher/.test(lc)?'gv':/amtsgericht|landgericht|mahngericht|zentrales mahngericht/.test(lc)?'gericht':/inkasso/.test(lc)?'inkasso':/rechtsanw(ä|a)lt|kanzlei/.test(lc)?'anwalt':'glaeubiger';
+ if((r.rolle==='inkasso'||r.rolle==='anwalt')&&r.typ==='rechnung')r.typ='mahnung';
+ r.firma=(L.find(l=>/(GmbH|AG\b|mbH|KG\b|e\.\s?K\.|Inkasso|Rechtsanw|Kanzlei|Amtsgericht|Landgericht|Gerichtsvollzieher|Bank|Versicherung|Sparkasse|Stadtwerke|Telekom|Vodafone|O2|Jobcenter|Finanzamt)/i.test(l))||L[0]||'').slice(0,80);
+ return r}
+function vNeu(){const ed=view.edit?E.get(view.edit):null,b=ed||{...(view.preset||{})};const A=akten();
+ const sel=b.akte||(ed?akteKey(ed):'');
+ shell(`<h1>${ed?'Schreiben bearbeiten':'Schreiben erfassen'}</h1>
+ ${ed?'':`<div class="card"><h3>1. Foto oder PDF</h3><p class="note">Brief fotografieren oder PDF wählen – mehrere Seiten möglich. Alles wird vor dem Speichern auf deinem Gerät verschlüsselt.</p><input id="fl" type="file" accept="image/*,application/pdf" multiple aria-label="Fotos oder PDF wählen"><p class="note" id="flInfo"></p></div>
+ <div class="card"><h3>2. ${AB?'Erkannter Text':'Text einfügen (optional)'}</h3><p class="note">${AB?'Wird automatisch aus Foto oder PDF gelesen – direkt auf dem Handy, nichts verlässt das Gerät. Du kannst ihn korrigieren.':'Tipp: Brief z. B. mit Google Lens öffnen → „Text kopieren“ → hier einfügen.'} Die App erkennt daraus Aktenzeichen, Daten, Betrag und Absender.</p><textarea id="txt" rows="5" placeholder="Brieftext hier einfügen"></textarea><div class="row"><button type="button" id="parse">Felder erkennen</button></div></div>`}
+ <form id="bf" class="card"><h3>${ed?'Angaben':'3. Angaben prüfen'}</h3>
+ <div class="grid2"><div><label for="f_firma">Absender (Firma / Gericht)</label><input id="f_firma" required value="${esc(b.firma)}"></div>
+ <div><label for="f_rolle">Wer schreibt?</label><select id="f_rolle">${Object.entries(ROLLEN).map(([k,l])=>`<option value="${k}" ${b.rolle===k?'selected':''}>${l}</option>`).join('')}</select></div>
+ <div><label for="f_typ">Art des Schreibens</label><select id="f_typ">${Object.entries(TYPEN).map(([k,l])=>`<option value="${k}" ${b.typ===k?'selected':''}>${l}</option>`).join('')}</select></div>
+ <div><label for="f_az">Aktenzeichen / Geschäftszeichen des Absenders</label><input id="f_az" value="${esc(b.az)}"></div>
+ <div><label for="f_akte">Gehört zu Akte</label><select id="f_akte"><option value="">Automatisch über Aktenzeichen</option>${A.map(a=>`<option value="${esc(a.key)}" ${sel===a.key&&b.akte?'selected':''}>${esc(a.glaeubiger)}${a.az?' · '+esc(a.az):''}</option>`).join('')}</select></div>
+ <div><label for="f_email">E-Mail des Absenders</label><input id="f_email" type="email" value="${esc(b.email)}"></div>
+ <div><label for="f_bdatum">Datum des Schreibens</label><input id="f_bdatum" type="date" value="${esc(b.bdatum||(ed?'':today()))}"></div>
+ <div id="zw"><label for="f_zust">Zugestellt am (bei Gerichtspost)</label><input id="f_zust" type="date" value="${esc(b.zust)}"></div>
+ <div><label for="f_rdatum">Rechnungsdatum</label><input id="f_rdatum" type="date" value="${esc(b.rdatum)}"></div>
+ <div><label for="f_lvon">Leistung von</label><input id="f_lvon" type="date" value="${esc(b.lvon)}"></div>
+ <div><label for="f_lbis">Leistung bis</label><input id="f_lbis" type="date" value="${esc(b.lbis)}"></div>
+ <div><label for="f_betrag">Betrag (€)</label><input id="f_betrag" inputmode="decimal" value="${b.betrag?String(b.betrag).replace('.',','):''}"></div>
+ <div><label for="f_faellig">Fällig am</label><input id="f_faellig" type="date" value="${esc(b.faellig)}"></div></div>
+ <label for="f_adr">Anschrift des Absenders (für Briefe ans Gericht)</label><textarea id="f_adr" rows="2">${esc(b.adr)}</textarea>
+ <label for="f_notiz">Notiz</label><input id="f_notiz" value="${esc(b.notiz)}">
+ <div class="banner" id="prev" aria-live="polite"></div>
+ <div class="row"><button class="pri" id="sv">Speichern</button>${ed?'<button type="button" data-cancel>Abbrechen</button>':''}</div></form>`);
+ const F=id=>$('#f_'+id);const files=[];
+ const read=()=>({firma:F('firma').value.trim(),rolle:F('rolle').value,typ:F('typ').value,az:F('az').value.trim(),akte:F('akte').value,email:F('email').value.trim(),bdatum:F('bdatum').value,zust:F('zust').value,rdatum:F('rdatum').value,lvon:F('lvon').value,lbis:F('lbis').value,betrag:pnum(F('betrag').value),faellig:F('faellig').value,adr:F('adr').value.trim(),notiz:F('notiz').value.trim()});
+ const upd=()=>{const o=read();const c=classB(o);const ex=!o.akte&&normAz(o.az)?A.find(a=>a.key==='az:'+normAz(o.az)):o.akte?A.find(a=>a.key===o.akte):null;
+  const k=c.k==='?'&&ex&&(ex.k==='alt'||ex.k==='neu')?ex.k:c.k;
+  $('#prev').innerHTML=`Einstufung: ${badge(k)} <span class="note">${esc(k!==c.k?'über bestehende Akte zugeordnet':c.why)}</span>${ex&&!ed?`<br><span class="note">Wird zur Akte <b>${esc(ex.glaeubiger)}</b> gelegt (${ex.briefe.length} Schreiben).</span>`:''}${k==='alt'&&o.bdatum>=ST().stichtag&&!isGer(o)?'<br><b>Alt-Gläubiger schreibt nach Eröffnung</b> – nach dem Speichern kannst du direkt die Hinweis-E-Mail erstellen.':''}${isGer(o)&&k!=='verf'?'<br><b>Gerichtsschreiben</b> – nach dem Speichern bekommst du die Vorlage für Widerspruch bzw. Antwort.':''}`;
+  $('#zw').style.display=isGer(o)?'':'none'};
+ $$('#bf input,#bf select').forEach(i=>{i.oninput=upd;i.onchange=upd});upd();
+ const fl=$('#fl');if(fl)fl.onchange=async()=>{files.length=0;const list=[...fl.files],info=$('#flInfo');if(!list.length){info.textContent='';return}
+  for(const[i,f]of list.entries()){info.textContent=`Bereite Datei ${i+1} von ${list.length} vor …`;try{files.push(await prep(f))}catch(e){toast(e.message)}}
+  if(AB&&files.length){let t='';for(const[i,pf]of files.entries()){info.textContent=`Erkenne Text ${i+1} von ${files.length} …`;const r=await ocr(pf.bytes,pf.type);if(r&&!r.startsWith('FEHLER'))t+=(t?'\n\n':'')+r}
+   if(t){$('#txt').value=t;$('#parse').click()}else toast('Kein Text erkannt – bitte Felder von Hand ausfüllen',4000)}
+  info.textContent=files.length?`${files.length} Datei(en) bereit`:''};
+ const pb=$('#parse');if(pb)pb.onclick=()=>{const t=$('#txt').value;if(!t.trim())return toast('Bitte zuerst Text einfügen');const r=parseText(t);
+  for(const k of ['firma','az','email','bdatum','rdatum','lvon','lbis','faellig','zust'])if(r[k])F(k).value=r[k];
+  if(r.betrag)F('betrag').value=r.betrag;F('typ').value=r.typ;F('rolle').value=r.rolle;upd();toast('Felder erkannt – bitte kurz prüfen')};
+ const cc=$('[data-cancel]');if(cc)cc.onclick=()=>go('akte',{key:akteKey(ed)});
+ $('#bf').onsubmit=async e=>{e.preventDefault();const o=read();if(!o.firma)return toast('Bitte Absender eintragen');const btn=$('#sv');busy(btn,true,'Wird verschlüsselt …');
+  try{const rec=ed?{...ed,...o}:{id:nid(),kind:'brief',created:new Date().toISOString(),files:[],...o};
+   if(!ed&&$('#txt').value.trim())rec.text=$('#txt').value.trim().slice(0,20000);
+   for(const f of files){busy(btn,true,`Lade Datei ${rec.files.length+1} von ${files.length} hoch …`);rec.files.push(await storeFile(f))}
+   await put(rec);toast('Sicher gespeichert');const key=akteKey(rec);go('akte',{key});
+   const a=akten().find(x=>x.key===key),x=a?.cls.find(y=>y.b.id===rec.id);
+   if(!ed&&x&&x.c.k!=='verf'&&x.c.k!=='neu'&&dOf(rec)>=ST().stichtag){isGer(rec)?courtModal(rec):(x.c.k==='alt'||x.c.k==='teil')&&mailModal(rec)}}
+  catch(err){toast('Fehler: '+(err.message||err.code||err),5000);busy(btn,false,'Speichern')}}}
+
+/* ---------- Vorlagen ---------- */
+const sig=s=>`${s.name||'[Dein Name]'}${s.adresse?'\n'+s.adresse:''}`;
+const verwTxt=s=>s.verwalter?`${s.verwalter}${s.verwalterAdr?', '+s.verwalterAdr.replace(/\n/g,', '):''}${s.verwalterMail?' (E-Mail: '+s.verwalterMail+')':''}`:'[Name und Anschrift des Insolvenzverwalters]';
+const insoSatz=s=>`Mit Beschluss vom ${fd(s.stichtag)} hat das ${s.insoGericht||'[Insolvenzgericht]'} (Az. ${s.insoAz||'[Aktenzeichen]'}) das Insolvenzverfahren über mein Vermögen eröffnet.`;
+function mailText(b){const s=ST();
+ const subject=`${b.az?'Ihr Zeichen '+b.az+' – ':''}Insolvenzverfahren über das Vermögen von ${s.name||'[Name]'}, Az. ${s.insoAz||'[Az.]'}`;
+ const body=`Sehr geehrte Damen und Herren,
+
+ich beziehe mich auf Ihr Schreiben vom ${fd(b.bdatum)}${b.az?' (Ihr Zeichen: '+b.az+')':''}.
+
+${insoSatz(s)}
+
+Ihre Forderung ist vor der Eröffnung entstanden und damit eine Insolvenzforderung. Sie kann nur noch nach den Vorschriften der Insolvenzordnung verfolgt werden, also durch Anmeldung zur Insolvenztabelle beim Insolvenzverwalter (§§ 87, 174 InsO). Maßnahmen der Zwangsvollstreckung sind während des Verfahrens unzulässig (§ 89 InsO).
+
+Insolvenzverwalter: ${verwTxt(s)}
+
+Bitte richten Sie Ihre Forderung ausschließlich an den Insolvenzverwalter und sehen Sie von weiteren Zahlungsaufforderungen an mich ab. Zahlungen an Sie werde ich nicht leisten.
+${s.kanzlei?'\nIn Kopie: '+s.kanzlei+'\n':''}
+Mit freundlichen Grüßen
+${sig(s)}`;return{subject,body}}
+function mailto(to,cc,subject,body){const clean=x=>String(x||'').replace(/[^\w@.+\-,;]/g,'');return `mailto:${clean(to)}?${cc?'cc='+clean(cc)+'&':''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+function mailModal(b){const s=ST(),{subject,body}=mailText(b);
+ modal(`<h2>Hinweis an ${esc(b.firma)}</h2><p class="note">Die Forderung gehört zur Insolvenzmasse. Prüf den Text, dann öffnet sich deine Mail-App – senden musst du selbst.</p>
+ <label for="m_to">An</label><input id="m_to" type="email" value="${esc(b.email)}" placeholder="E-Mail des Absenders">
+ <label for="m_cc">Kopie an (Kanzlei)</label><input id="m_cc" value="${esc(s.kanzleiMail)}">
+ <label for="m_su">Betreff</label><input id="m_su"><label for="m_tx">Text</label><textarea id="m_tx" rows="14"></textarea>
+ <div class="row"><a class="btn pri" id="m_open" target="_blank" rel="noopener">In Mail-App öffnen</a><button id="m_cp">Text kopieren</button><button id="m_done">Als gesendet markieren</button></div>
+ <p class="note" id="m_hint">Öffnet sich keine Mail-App, kopier den Text und schick ihn an <b>${esc(b.email||'die Adresse im Brief')}</b>. Ohne E-Mail-Adresse: Text kopieren und per Post schicken.</p>`);
+ $('#m_su').value=subject;$('#m_tx').value=body;
+ const sync=()=>{$('#m_open').href=mailto($('#m_to').value,$('#m_cc').value,$('#m_su').value,$('#m_tx').value)};
+ $$('#m_to,#m_cc,#m_su,#m_tx').forEach(i=>i.oninput=sync);sync();
+ $('#m_cp').onclick=()=>copy(`Betreff: ${$('#m_su').value}\n\n${$('#m_tx').value}`);
+ $('#m_done').onclick=async()=>{const o={...E.get(b.id)};o.done=true;o.doneNote='Hinweis gesendet am '+fd(today());await put(o);closeModal();toast('Als erledigt markiert');render()}}
+const CT={mahnbescheid:{t:'Widerspruch gegen den Mahnbescheid',r:'Widerspruch',p:'§ 694 ZPO',h:'Frist: 2 Wochen ab Zustellung. Am besten zusätzlich das beiliegende Widerspruchsformular ankreuzen und unterschreiben.'},
+ vb:{t:'Einspruch gegen den Vollstreckungsbescheid',r:'Einspruch',p:'§ 700 ZPO',h:'Frist: 2 Wochen ab Zustellung – unbedingt einhalten.'},
+ pfaendung:{t:'Erinnerung gegen die Zwangsvollstreckung',r:'Erinnerung',p:'§ 766 ZPO, § 89 Abs. 3 InsO',h:'Über Einwände gegen Vollstreckungen während des Verfahrens entscheidet das Insolvenzgericht – deshalb geht dieses Schreiben dorthin. So schnell wie möglich senden.'},
+ klage:{t:'Hinweis auf die Unterbrechung des Verfahrens',r:'Hinweis',p:'§ 240 ZPO',h:'Gerichtliche Fristen trotzdem beachten und sofort die Kanzlei informieren.'}};
+function courtText(b,typ,adr){const s=ST(),c=CT[typ],a=akten().find(x=>x.key===akteKey(b));const gl=a?.glaeubiger||'[Gläubiger]';
+ const toIns=typ==='pfaendung';
+ const rcpt=toIns?`${s.insoGericht||'[Insolvenzgericht]'}\n${s.insoGerichtAdr||'[Anschrift des Insolvenzgerichts]'}`:`${b.firma||'[Gericht]'}\n${adr||'[Anschrift des Gerichts]'}`;
+ let body=`${(s.adresse||'').split('\n').pop().replace(/^\d{5}\s*/,'')||'[Ort]'}, den ${fd(today())}
+
+Geschäftszeichen: ${b.az||'[Geschäftszeichen]'}${toIns?`\nInsolvenzverfahren Az. ${s.insoAz||'[Az.]'}`:''}
+In der Sache ${gl} ./. ${s.name||'[Name]'}
+
+${c.t} vom ${fd(b.bdatum)}${b.zust?', zugestellt am '+fd(b.zust):''}
+
+Sehr geehrte Damen und Herren,
+
+`;
+ if(typ==='mahnbescheid')body+=`hiermit lege ich gegen den oben genannten Mahnbescheid Widerspruch in vollem Umfang ein (§ 694 ZPO).\n\n`;
+ else if(typ==='vb')body+=`hiermit lege ich gegen den oben genannten Vollstreckungsbescheid Einspruch in vollem Umfang ein (§ 700 ZPO).\n\n`;
+ else if(typ==='pfaendung')body+=`hiermit lege ich Erinnerung gegen die oben genannte Maßnahme der Zwangsvollstreckung ein (§ 766 ZPO i. V. m. § 89 Abs. 3 InsO) und beantrage, die Zwangsvollstreckung für unzulässig zu erklären und aufzuheben.\n\n`;
+ else body+=`ich weise darauf hin, dass über mein Vermögen das Insolvenzverfahren eröffnet wurde. Das Verfahren ist daher nach § 240 ZPO unterbrochen.\n\n`;
+ body+=`Begründung:
+${insoSatz(s)} Die geltend gemachte Forderung ist vor der Eröffnung entstanden und damit eine Insolvenzforderung. Insolvenzgläubiger können ihre Forderungen nach § 87 InsO nur nach den Vorschriften über das Insolvenzverfahren verfolgen, also durch Anmeldung zur Insolvenztabelle beim Insolvenzverwalter (§ 174 InsO).${typ==='pfaendung'?' Zwangsvollstreckungen für einzelne Insolvenzgläubiger sind während der Dauer des Verfahrens nach § 89 Abs. 1 InsO unzulässig.':' Ein Rechtsstreit über die Forderung ist nach § 240 ZPO unterbrochen.'}
+
+Insolvenzverwalter: ${verwTxt(s)}
+${s.kanzlei?'Verfahrensbevollmächtigte: '+s.kanzlei+'\n':''}
+Ich bitte um Bestätigung des Eingangs.
+
+Mit freundlichen Grüßen
+
+
+
+______________________________
+${s.name||'[Name]'}`;
+ return{rcpt,body}}
+/* Eigener kleiner PDF-Baustein – funktioniert auch ohne Internet */
+const WIN={'€':128,'‚':130,'„':132,'…':133,'‘':145,'’':146,'“':147,'”':148,'•':149,'–':150,'—':151};
+const pdfStr=t=>Array.from(String(t),ch=>{const c=ch.charCodeAt(0);const v=c<128||(c>=160&&c<256)?c:(WIN[ch]||63);return String.fromCharCode(v)}).join('').replace(/[\\()]/g,m=>'\\'+m);
+function pdfBytes(pages){const objs=['<</Type/Catalog/Pages 2 0 R>>','','<</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>'],kids=[];const add=o=>objs.push(o);
+ for(const p of pages){const ct=p.map(l=>`BT /F1 ${l.s} Tf ${l.x} ${l.y} Td (${pdfStr(l.t)}) Tj ET`).join('\n');const c=add(`<</Length ${ct.length}>>\nstream\n${ct}\nendstream`);kids.push(add(`<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Resources<</Font<</F1 3 0 R>>>>/Contents ${c} 0 R>>`))}
+ objs[1]=`<</Type/Pages/Kids[${kids.map(k=>k+' 0 R').join(' ')}]/Count ${kids.length}>>`;
+ let out='%PDF-1.4\n';const off=[];objs.forEach((o,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`});
+ const x=out.length;out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<</Size ${objs.length+1}/Root 1 0 R>>\nstartxref\n${x}\n%%EOF\n`;
+ return Uint8Array.from(out,c=>c.charCodeAt(0)&255)}
+function wrapT(t,n){const out=[];for(const para of String(t).split('\n')){if(!para.trim()){out.push('');continue}let line='';for(const w of para.split(' ')){if(line&&(line+' '+w).length>n){out.push(line);line=w}else line=line?line+' '+w:w}out.push(line)}return out}
+function letterBytes(rcpt,body){const s=ST(),pages=[[]];let p=pages[0];
+ p.push({x:71,y:714,s:8.5,t:`${s.name||''} · ${(s.adresse||'').replace(/\n/g,' · ')}`});
+ rcpt.split('\n').forEach((l,i)=>p.push({x:71,y:692-i*14,s:11,t:l}));
+ let y=580;for(const l of wrapT(body,82)){if(y<70){p=[];pages.push(p);y=771}p.push({x:71,y,s:11,t:l});y-=15}
+ return pdfBytes(pages)}
+const letterPdf=(fname,rcpt,body)=>save(fname,letterBytes(rcpt,body));
+function courtModal(b){const s=ST();let typ=GT.has(b.typ)?b.typ:'klage';
+ modal(`<h2>Antwort ans Gericht</h2><p class="note">${esc(b.firma)} · ${esc(TYPEN[b.typ]||'')} vom ${fd(b.bdatum)}</p>
+ <label for="c_t">Was ist gekommen?</label><select id="c_t">${Object.entries(CT).map(([k,v])=>`<option value="${k}" ${k===typ?'selected':''}>${k==='mahnbescheid'?'Mahnbescheid → Widerspruch':k==='vb'?'Vollstreckungsbescheid → Einspruch':k==='pfaendung'?'Pfändung / Vollstreckung → Erinnerung':'Klage, Ladung, Sonstiges → Hinweis'}</option>`).join('')}</select>
+ <div class="banner" id="c_h"></div>
+ <label for="c_r">Empfänger</label><textarea id="c_r" rows="3"></textarea><label for="c_b">Text</label><textarea id="c_b" rows="16"></textarea>
+ <div class="row"><button class="pri" id="c_pdf">Als PDF speichern</button>${AB?'<button id="c_sh">PDF teilen</button>':''}<button id="c_cp">Text kopieren</button>${s.kanzleiMail?'<a class="btn" id="c_kz" target="_blank" rel="noopener">Kanzlei informieren</a>':''}<button id="c_done">Als erledigt markieren</button></div>
+ <ul class="warnlist"><li>Ans Gericht <b>nicht per E-Mail</b>: ausdrucken, unterschreiben, per Post (am besten Einschreiben) oder Fax senden.</li><li>Kopie an die Kanzlei und das Gerichtsschreiben gleich mitschicken.</li><li>Das ist ein Entwurf, keine Rechtsberatung. Im Zweifel vor dem Absenden mit der Kanzlei abstimmen – Fristen aber nicht verstreichen lassen.</li></ul>`);
+ const fill=()=>{typ=$('#c_t').value;const c=CT[typ],{rcpt,body}=courtText(b,typ,b.adr);const f=fristOf({...b,typ});
+  $('#c_h').innerHTML=`<b>${esc(c.r)}</b> (${esc(c.p)}). ${esc(c.h)}${f?`<br><span class="frist">Frist bis ${fd(f)}</span>${b.zust?'':' <span class="note">(gerechnet ab Briefdatum – Zustelldatum eintragen!)</span>'}`:''}`;
+  $('#c_r').value=rcpt;$('#c_b').value=body;kz()};
+ const kz=()=>{const a=$('#c_kz');if(a)a.href=mailto(s.kanzleiMail,'',`Gerichtspost: ${TYPEN[b.typ]||'Schreiben'} von ${b.firma}${b.az?' ('+b.az+')':''}`,`Sehr geehrte Damen und Herren,\n\nich habe am ${fd(b.zust||b.bdatum)} folgendes Schreiben erhalten: ${TYPEN[b.typ]||'Schreiben'} von ${b.firma}${b.az?', Geschäftszeichen '+b.az:''}.\nIch habe dazu folgenden Entwurf vorbereitet und bitte um kurze Prüfung. Eine Kopie des Schreibens hänge ich an.\n\n${$('#c_b').value}\n\nMit freundlichen Grüßen\n${s.name||''}`)};
+ $('#c_t').onchange=fill;$('#c_b').oninput=kz;fill();
+ $('#c_cp').onclick=()=>copy($('#c_r').value+'\n\n'+$('#c_b').value);
+ $('#c_pdf').onclick=async e=>{busy(e.target,true,'Erstelle PDF …');try{await letterPdf(`${CT[typ].r}-${(b.az||'gericht').replace(/[^\w-]/g,'_')}.pdf`,$('#c_r').value,$('#c_b').value)}catch(err){toast(err.message)}busy(e.target,false,'Als PDF speichern')};
+ const csh=$('#c_sh');if(csh)csh.onclick=()=>share(`${CT[typ].r}-${(b.az||'gericht').replace(/[^\w-]/g,'_')}.pdf`,letterBytes($('#c_r').value,$('#c_b').value));
+ $('#c_done').onclick=async()=>{const o={...E.get(b.id)};o.done=true;o.doneNote=`${CT[typ].r} erstellt am ${fd(today())}`;await put(o);closeModal();toast('Als erledigt markiert');render()}}
+function kanzleiModal(a){const s=ST(),b=a.neuest;const body=`Sehr geehrte Damen und Herren,\n\nzu meinem Insolvenzverfahren (Az. ${s.insoAz}) leite ich Ihnen folgendes Schreiben weiter:\n\nAbsender: ${b.firma}\nArt: ${TYPEN[b.typ]||''}\nDatum: ${fd(b.bdatum)}\n${b.az?'Zeichen: '+b.az+'\n':''}${b.betrag?'Betrag: '+eur(b.betrag)+'\n':''}Ursprünglicher Gläubiger: ${a.glaeubiger}\n\nEine Kopie hänge ich an. Bitte teilen Sie mir mit, ob ich etwas unternehmen muss.\n\nMit freundlichen Grüßen\n${s.name}`;
+ modal(`<h2>An die Kanzlei</h2><label for="k_tx">Text</label><textarea id="k_tx" rows="14"></textarea><div class="row"><a class="btn pri" id="k_open" target="_blank" rel="noopener">In Mail-App öffnen</a><button id="k_cp">Text kopieren</button></div><p class="note">Das Foto des Schreibens bitte in der Mail-App anhängen (vorher unter „Foto ansehen“ herunterladen).</p>`);
+ $('#k_tx').value=body;const sync=()=>{$('#k_open').href=mailto(s.kanzleiMail,'',`Insolvenzverfahren ${s.insoAz}: Schreiben von ${b.firma}`,$('#k_tx').value)};$('#k_tx').oninput=sync;sync();$('#k_cp').onclick=()=>copy($('#k_tx').value)}
+
+/* ---------- Einstellungen ---------- */
+function vMehr(){const s=ST();
+ shell(`<h1>Einstellungen</h1>
+ <form id="sf" class="card"><h2>Insolvenzverfahren</h2>
+ <div class="grid2"><div><label for="s_stichtag">Eröffnung (Stichtag)</label><input id="s_stichtag" type="date" required value="${esc(s.stichtag)}"></div>
+ <div><label for="s_insoAz">Aktenzeichen Insolvenzverfahren</label><input id="s_insoAz" value="${esc(s.insoAz)}" placeholder="z. B. 12 IK 345/26"></div>
+ <div><label for="s_insoGericht">Insolvenzgericht</label><input id="s_insoGericht" value="${esc(s.insoGericht)}" placeholder="z. B. Amtsgericht …"></div>
+ <div><label for="s_insoGerichtAdr">Anschrift Insolvenzgericht</label><textarea id="s_insoGerichtAdr" rows="2">${esc(s.insoGerichtAdr)}</textarea></div>
+ <div><label for="s_verwalter">Insolvenzverwalter (Name)</label><input id="s_verwalter" value="${esc(s.verwalter)}"></div>
+ <div><label for="s_verwalterMail">E-Mail Verwalter</label><input id="s_verwalterMail" type="email" value="${esc(s.verwalterMail)}"></div>
+ <div><label for="s_verwalterAdr">Anschrift Verwalter</label><textarea id="s_verwalterAdr" rows="2">${esc(s.verwalterAdr)}</textarea></div>
+ <div><label for="s_kanzlei">Deine Kanzlei</label><input id="s_kanzlei" value="${esc(s.kanzlei)}"></div>
+ <div><label for="s_kanzleiMail">E-Mail Kanzlei</label><input id="s_kanzleiMail" type="email" value="${esc(s.kanzleiMail)}"></div></div>
+ <h2 style="margin-top:20px">Deine Angaben für Briefe</h2>
+ <div class="grid2"><div><label for="s_name">Vor- und Nachname</label><input id="s_name" value="${esc(s.name)}"></div>
+ <div><label for="s_adresse">Anschrift (Straße, dann PLZ Ort)</label><textarea id="s_adresse" rows="2">${esc(s.adresse)}</textarea></div></div>
+ <div class="row"><button class="pri">Speichern</button></div></form>
+ <div class="card"><h2>Sicherheit</h2>
+ <p class="note">Alles – Texte, Beträge, Aktenzeichen, Fotos – wird auf deinem Gerät mit AES-256 verschlüsselt, bevor es gespeichert wird. Der Schlüssel entsteht nur aus deinem Passwort und wird nie gespeichert. In der Cloud liegt nur unlesbarer Datensalat – geschützt zusätzlich durch dein Konto, sodass nur du an deine Einträge kommst. Bildschirmfotos sind in der App gesperrt.</p>
+ <label for="s_lock">Automatisch sperren nach</label><select id="s_lock">${[2,5,10,15].map(m=>`<option value="${m}" ${+s.lockMin===m?'selected':''}>${m} Minuten ohne Nutzung</option>`).join('')}</select>
+ <div class="row"><button id="chPw">Passwort ändern</button><button id="newCode">Neuen Notfall-Code erstellen</button></div></div>
+ <div class="card"><h2>Speicherort</h2><p>${mode()==='cloud'?`Cloud (Supabase)${LS.get('sb_email')?' · angemeldet als '+esc(LS.get('sb_email')):''}`:'<b>Nur auf diesem Gerät</b> – bei Verlust des Handys sind die Daten ohne Sicherung weg.'}</p>
+ <div class="row">${mode()==='cloud'?'<button id="lo">Auf diesem Gerät abmelden</button>':'<button class="pri" id="mig">In die Cloud umziehen</button>'}${AB?'<button id="upd">Nach Updates suchen</button>':''}</div>${AB?`<p class="note">App-Version ${esc(AB.version())}</p>`:''}</div>
+ <div class="card"><h2>Sicherung & Export</h2><p class="note">Die Sicherung ist verschlüsselt und nur mit deinem Passwort lesbar. Speicher sie z. B. zusätzlich in Google Drive oder auf einem USB-Stick.</p>
+ <div class="row"><button class="pri" id="bk">Sicherung speichern</button>${AB?'<button id="bks">Sicherung teilen (z. B. Google Drive)</button>':''}<button id="imp">Sicherung einspielen</button><input id="impF" type="file" accept=".json,application/json" hidden></div>
+ <p class="note" style="margin-top:14px">Gläubigerliste als Tabelle (für Kanzlei oder Verwalter). <b>Achtung:</b> Diese Datei ist nicht verschlüsselt.</p>
+ <div class="row"><button id="csv">Gläubigerliste (CSV/Excel)</button></div></div>`);
+ $('#sf').onsubmit=async e=>{e.preventDefault();const o={...ST()};for(const k of ['stichtag','insoAz','insoGericht','insoGerichtAdr','verwalter','verwalterMail','verwalterAdr','kanzlei','kanzleiMail','name','adresse'])o[k]=$('#s_'+k).value.trim();await put(o);toast('Gespeichert')};
+ $('#s_lock').onchange=async e=>{await put({...ST(),lockMin:+e.target.value});toast('Gespeichert')};
+ $('#chPw').onclick=changePw;$('#newCode').onclick=regenCode;$('#bk').onclick=e=>exportBackup(e.target);const bks=$('#bks');if(bks)bks.onclick=e=>exportBackup(e.target,'share');
+ const mig=$('#mig');if(mig)mig.onclick=()=>cloudSetup(true);
+ const lo=$('#lo');if(lo)lo.onclick=async()=>{if(!await ask('Auf diesem Gerät abmelden? Deine Daten bleiben in der Cloud.','Abmelden'))return;Cloud.logout();KEY=null;E.clear();boot()};
+ const up=$('#upd');if(up)up.onclick=()=>{AB.checkUpdate();toast('Suche nach Updates …')};$('#imp').onclick=()=>$('#impF').click();$('#impF').onchange=e=>importBackup(e.target.files[0]);$('#csv').onclick=exportCsv}
+function pwFields(p=''){return `<label for="${p}n1">Neues Passwort (mind. 12 Zeichen)</label><input id="${p}n1" type="password" autocomplete="new-password"><div class="meter"><i id="${p}mt"></i></div><label for="${p}n2">Neues Passwort wiederholen</label><input id="${p}n2" type="password" autocomplete="new-password">`}
+function bindMeter(p=''){$('#'+p+'n1').oninput=e=>{const v=strength(e.target.value);const m=$('#'+p+'mt');m.style.width=v*20+'%';m.style.background=v>=4?'var(--ok)':v>=3?'var(--warn)':'var(--alt)'}}
+function checkNew(p=''){const a=$('#'+p+'n1').value,b=$('#'+p+'n2').value;if(a.length<12){toast('Mindestens 12 Zeichen');return null}if(a!==b){toast('Passwörter stimmen nicht überein');return null}if(strength(a)<3){toast('Bitte ein stärkeres Passwort (Groß/klein, Zahl oder Satz)');return null}return a}
+async function rawFromPw(pw){const kp=await kdf(pw,unb64(META.salt),META.iter);return unseal(kp,META.wp)}
+async function writeMeta(m){await serial(()=>B().set('meta','vault',m));META=m}
+async function changePw(){modal(`<h2>Passwort ändern</h2><label for="o1">Aktuelles Passwort</label><input id="o1" type="password" autocomplete="current-password">${pwFields()}<div class="row"><button class="pri" id="go">Ändern</button></div>`);bindMeter();
+ $('#go').onclick=async e=>{const nw=checkNew();if(!nw)return;busy(e.target,true,'Bitte warten …');try{const raw=await rawFromPw($('#o1').value);const salt=rnd(16);const wp=await seal(await kdf(nw,salt,ITER),raw);raw.fill(0);await writeMeta({...META,salt:b64(salt),iter:ITER,wp});closeModal();toast('Passwort geändert')}catch{toast('Aktuelles Passwort falsch');busy(e.target,false,'Ändern')}}}
+async function regenCode(){modal(`<h2>Neuer Notfall-Code</h2><p class="note">Der alte Code wird ungültig.</p><label for="o1">Passwort</label><input id="o1" type="password" autocomplete="current-password"><div class="row"><button class="pri" id="go">Code erstellen</button></div>`);
+ $('#go').onclick=async e=>{busy(e.target,true,'Bitte warten …');try{const raw=await rawFromPw($('#o1').value);const code=newCode(),saltR=rnd(16);const wr=await seal(await kdf(normCode(code),saltR,ITER),raw);raw.fill(0);await writeMeta({...META,saltR:b64(saltR),wr});modal(`<h2>Dein neuer Notfall-Code</h2><div class="code">${code}</div><p>Schreib ihn auf Papier und bewahre ihn getrennt vom Handy auf.</p>`)}catch{toast('Passwort falsch');busy(e.target,false,'Code erstellen')}}}
+async function backupJson(){const ent=await B().list('entries'),bl=await B().list('blobs');return JSON.stringify({app:'papierkram-tresor',v:1,at:new Date().toISOString(),meta:META,entries:ent,blobs:bl})}
+async function exportBackup(btn,how){const t=btn.textContent;busy(btn,true,'Sicherung wird erstellt …');try{const fn=`mein-daten-digitalisierer-sicherung-${today()}.json`,j=await backupJson();how==='share'?await share(fn,j):await save(fn,j);put({...ST(),lastBackup:today()})}catch(e){toast('Sicherung fehlgeschlagen: '+e.message,5000)}busy(btn,false,t)}
+async function restore(j){for(const n of ['entries','blobs']){const ex=await B().list(n);for(const d of ex)await serial(()=>B().del(n,d.id))}
+ for(const d of j.entries){const{id,...body}=d;await serial(()=>B().set('entries',id,body))}
+ for(const d of j.blobs){const{id,...body}=d;await serial(()=>B().set('blobs',id,body))}
+ await writeMeta(j.meta)}
+async function importBackup(file){if(!file)return;let j;try{j=JSON.parse(await file.text())}catch{return toast('Keine gültige Sicherungsdatei')}
+ if(j.app!=='papierkram-tresor'||!j.meta?.wp)return toast('Keine gültige Sicherungsdatei');
+ if(!await ask(`Sicherung vom ${fd((j.at||'').slice(0,10))} einspielen? Alle aktuellen Daten werden ersetzt. Danach entsperrst du mit dem Passwort dieser Sicherung.`,'Ersetzen',true))return;
+ toast('Wird eingespielt …',8000);try{await restore(j);toast('Sicherung eingespielt');lock()}catch(e){toast('Fehler beim Einspielen: '+e.message,6000)}}
+async function exportCsv(){if(!await ask('Die Gläubigerliste wird unverschlüsselt gespeichert. Fortfahren?','Ja, speichern'))return;
+ const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;const rows=[['Ursprünglicher Gläubiger','Aktuell bei','Aktenzeichen','Alt-Forderung (EUR)','Neu offen (EUR)','Letztes Schreiben','Einstufung','Status']];
+ for(const a of akten().filter(a=>a.k!=='verf'))rows.push([a.glaeubiger,a.aktuell,a.az,a.alt.toFixed(2).replace('.',','),a.offen.toFixed(2).replace('.',','),fd(dOf(a.neuest)),KL[a.k],a.done?'erledigt':'offen']);
+ await save(`glaeubigerliste-${today()}.csv`,'﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n'))}
+
+/* ---------- Einrichtung & Sperre ---------- */
+function lockScreen(inner){app.innerHTML=`<div class="lockbox">${inner}</div>`}
+function showSetup(){lockScreen(`<h1>Mein Daten-Digitalisierer einrichten</h1><p>Hier landen deine Rechnungen, Mahnungen und Gerichtsschreiben – sortiert nach Aktenzeichen und nach dem Eröffnungsdatum deiner Insolvenz.</p>
+ <div class="banner">Dein Passwort ist der einzige Schlüssel. Niemand – auch nicht der Server – kann es zurücksetzen. Deshalb bekommst du gleich zusätzlich einen Notfall-Code für Papier.</div>
+ <form id="su">${pwFields()}<div class="row"><button class="pri" id="sb">Zugang anlegen</button></div></form>`);bindMeter();
+ $('#su').onsubmit=async e=>{e.preventDefault();const pw=checkNew();if(!pw)return;busy($('#sb'),true,'Schlüssel wird erzeugt …');
+  try{const raw=rnd(32),salt=rnd(16),saltR=rnd(16),code=newCode();
+   const wp=await seal(await kdf(pw,salt,ITER),raw),wr=await seal(await kdf(normCode(code),saltR,ITER),raw);
+   const meta={v:1,iter:ITER,salt:b64(salt),saltR:b64(saltR),wp,wr,created:new Date().toISOString()};KEY=await aesKey(raw);raw.fill(0);
+   lockScreen(`<h1>Dein Notfall-Code</h1><div class="code">${code}</div><p>Schreib diesen Code <b>jetzt auf Papier</b> und leg ihn zu deinen wichtigen Unterlagen. Damit kommst du an deine Daten, falls du das Passwort vergisst. Mach kein Foto davon auf dem Handy.</p>
+    <label style="display:flex;gap:10px;align-items:center;color:var(--ink)"><input type="checkbox" id="ok" style="width:24px;min-height:24px"> Ich habe den Code aufgeschrieben</label><div class="row"><button class="pri" id="fin" disabled>Weiter</button></div>`);
+   $('#ok').onchange=e=>{$('#fin').disabled=!e.target.checked};
+   $('#fin').onclick=async e=>{busy(e.target,true,'Speichere …');try{await writeMeta(meta);E.clear();await put({...DEF,id:'settings'});armLock();go('mehr');toast('Die App ist eingerichtet – jetzt Verfahrensdaten eintragen',4500)}catch(err){toast('Speichern fehlgeschlagen: '+err.message,6000);busy(e.target,false,'Weiter')}}}
+  catch(err){toast('Fehler: '+err.message);busy($('#sb'),false,'Zugang anlegen')}}}
+function showLock(msg=''){KEY=null;E.clear();closeModal();
+ lockScreen(`<h1>Mein Daten-Digitalisierer</h1>${msg?`<p class="note">${esc(msg)}</p>`:''}<form id="lf"><label for="pw">Passwort</label><input id="pw" type="password" autocomplete="current-password" autofocus><div class="row"><button class="pri" id="ub">Entsperren</button><button type="button" class="ghost" id="rc">Passwort vergessen?</button></div></form>`);
+ $('#lf').onsubmit=async e=>{e.preventDefault();if(Date.now()<blockUntil)return toast(`Zu viele Versuche – bitte ${Math.ceil((blockUntil-Date.now())/1000)} s warten`);busy($('#ub'),true,'Entschlüssele …');
+  try{const raw=await rawFromPw($('#pw').value);KEY=await aesKey(raw);raw.fill(0);fails=0;await loadAll();armLock();go('home')}
+  catch(err){if(KEY){KEY=null;if(err.code==='auth')return cloudLogin();toast('Daten nicht erreichbar: '+err.message,5000)}else{fails++;if(fails>=5)blockUntil=Date.now()+30000*2**(fails-5);toast('Passwort falsch')}busy($('#ub'),false,'Entsperren')}};
+ $('#rc').onclick=()=>{lockScreen(`<h1>Mit Notfall-Code entsperren</h1><form id="rf"><label for="cd">Notfall-Code</label><input id="cd" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">${pwFields()}<div class="row"><button class="pri" id="rb">Entsperren & neues Passwort setzen</button><button type="button" class="ghost" id="bk2">Zurück</button></div></form>`);bindMeter();
+  $('#bk2').onclick=()=>showLock();
+  $('#rf').onsubmit=async e=>{e.preventDefault();const nw=checkNew();if(!nw)return;busy($('#rb'),true,'Prüfe …');
+   try{const raw=await unseal(await kdf(normCode($('#cd').value),unb64(META.saltR),META.iter),META.wr);const salt=rnd(16);const wp=await seal(await kdf(nw,salt,ITER),raw);KEY=await aesKey(raw);raw.fill(0);await writeMeta({...META,salt:b64(salt),iter:ITER,wp});await loadAll();armLock();go('home');toast('Neues Passwort gesetzt')}
+   catch{KEY=null;toast('Code falsch oder keine Verbindung');busy($('#rb'),false,'Entsperren & neues Passwort setzen')}}}}
+function lock(){showLock('Gesperrt. Deine Daten sind verschlüsselt.')}
+let armed=false;function armLock(){lastAct=Date.now();if(armed)return;armed=true;
+ ['pointerdown','keydown','scroll','touchstart'].forEach(ev=>addEventListener(ev,()=>{lastAct=Date.now()},{passive:true}));
+ setInterval(()=>{if(KEY&&Date.now()-lastAct>(+ST().lockMin||5)*6e4)showLock('Automatisch gesperrt nach Inaktivität.')},15000);
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(KEY&&hiddenAt&&Date.now()-hiddenAt>6e4)showLock('Gesperrt, weil die App im Hintergrund war.')})}
+
+/* ---------- Start: Speicherort, Cloud-Anmeldung ---------- */
+function offline(e){lockScreen(`<h1>Mein Daten-Digitalisierer</h1><p>Der Speicher ist gerade nicht erreichbar${mode()==='cloud'?' – bitte Internetverbindung prüfen':''}.</p><p class="note">${esc(e?.message||'')}</p><div class="row"><button class="pri" id="rt">Erneut versuchen</button></div>`);$('#rt').onclick=()=>{lockScreen('<p class="note">Verbinde …</p>');boot()}}
+function chooseStore(){lockScreen(`<h1>Mein Daten-Digitalisierer</h1><p>Wo sollen deine Daten liegen? Verschlüsselt werden sie in beiden Fällen auf deinem Gerät.</p>
+ <div class="card"><h3>Cloud (Supabase) – empfohlen</h3><p class="note">Am PC abrufbar und bei Handyverlust nicht weg. Einmalig ein kostenloses Supabase-Konto nötig (Anleitung im GitHub-Repository).</p><button class="pri" id="cs1">Cloud verbinden</button></div>
+ <div class="card"><h3>Erst mal nur auf diesem Gerät</h3><p class="note">Sofort startklar. Später jederzeit in die Cloud umziehbar.</p><button id="cs2">Nur hier speichern</button></div>`);
+ $('#cs1').onclick=()=>cloudSetup();$('#cs2').onclick=()=>{LS.set('mode','local');boot()}}
+async function migrate(){lockScreen('<h1>Umzug in die Cloud</h1><p id="mg">Prüfe …</p>');const st=t=>{$('#mg').textContent=t};
+ if(await Cloud.get('meta','vault')){lockScreen('<h1>Umzug abgebrochen</h1><p>In diesem Cloud-Konto liegen schon Daten. Damit nichts überschrieben wird, habe ich nichts übertragen.</p><div class="row"><button class="pri" id="bk3">Zurück</button></div>');$('#bk3').onclick=()=>KEY?go('mehr'):boot();return}
+ const meta=await Local.get('meta','vault'),ent=await Local.list('entries'),bl=await Local.list('blobs');let n=0;const tot=ent.length+bl.length;
+ for(const d of ent){const{id,...body}=d;await Cloud.set('entries',id,body);st(`Übertrage ${++n} von ${tot} …`)}
+ for(const d of bl){const{id,...body}=d;await Cloud.set('blobs',id,body);st(`Übertrage ${++n} von ${tot} …`)}
+ await Cloud.set('meta','vault',meta);LS.set('mode','cloud');toast('Umzug fertig – deine Daten liegen jetzt verschlüsselt in der Cloud',5000);KEY?go('mehr'):boot()}
+function cloudSetup(mig=false){lockScreen(`<h1>Cloud verbinden</h1><p class="note">URL und Schlüssel findest du in Supabase unter <b>Project Settings › API</b>. Das Konto legst du dort unter <b>Authentication › Users</b> an.</p>
+ <form id="cf"><label for="c_url">Project URL</label><input id="c_url" placeholder="https://xxxx.supabase.co" value="${esc(LS.get('sb_url')||'')}" autocomplete="off" inputmode="url">
+ <label for="c_key">anon public key</label><input id="c_key" value="${esc(LS.get('sb_key')||'')}" autocomplete="off">
+ <label for="c_mail">Konto-E-Mail</label><input id="c_mail" type="email" value="${esc(LS.get('sb_email')||'')}" autocomplete="username">
+ <label for="c_pw">Konto-Passwort</label><input id="c_pw" type="password" autocomplete="current-password">
+ <div class="row"><button class="pri" id="cb">Verbinden</button><button type="button" class="ghost" id="cx">Zurück</button></div></form>`);
+ $('#cx').onclick=()=>mig&&KEY?go('mehr'):(mode()?boot():chooseStore());
+ $('#cf').onsubmit=async e=>{e.preventDefault();const url=$('#c_url').value.trim(),key=$('#c_key').value.trim();if(!/^https:\/\/.+/.test(url)||key.length<20)return toast('Bitte URL (https://…) und Schlüssel prüfen');
+  busy($('#cb'),true,'Verbinde …');LS.set('sb_url',url);LS.set('sb_key',key);Cloud.cfg();
+  try{await Cloud.login($('#c_mail').value.trim(),$('#c_pw').value);await Cloud.list('meta')}catch(err){toast(/relation|vault_docs|schema/i.test(err.message)?'Tabelle fehlt – bitte zuerst das SQL aus der Anleitung in Supabase ausführen':err.message,6000);busy($('#cb'),false,'Verbinden');return}
+  if(mig){try{await migrate()}catch(err){toast('Umzug fehlgeschlagen: '+err.message,6000);KEY?go('mehr'):boot()}}else{LS.set('mode','cloud');boot()}}}
+function cloudLogin(){lockScreen(`<h1>Anmelden</h1><p class="note">Melde dich mit deinem Cloud-Konto an. Danach brauchst du auf diesem Gerät nur noch dein Tresor-Passwort.</p>
+ <form id="cl"><label for="l_mail">Konto-E-Mail</label><input id="l_mail" type="email" value="${esc(LS.get('sb_email')||'')}" autocomplete="username"><label for="l_pw">Konto-Passwort</label><input id="l_pw" type="password" autocomplete="current-password">
+ <div class="row"><button class="pri" id="lb">Anmelden</button><button type="button" class="ghost" id="lc">Verbindung ändern</button></div></form>`);
+ $('#lc').onclick=()=>cloudSetup();
+ $('#cl').onsubmit=async e=>{e.preventDefault();busy($('#lb'),true,'Melde an …');try{await Cloud.login($('#l_mail').value.trim(),$('#l_pw').value);boot()}catch(err){toast(err.message,5000);busy($('#lb'),false,'Anmelden')}}}
+async function boot(){
+ if(!window.crypto?.subtle)return lockScreen('<h1>Mein Daten-Digitalisierer</h1><p>Dieser Browser unterstützt die nötige Verschlüsselung nicht.</p>');
+ const m=mode();if(!m)return chooseStore();
+ if(m==='cloud'){if(!Cloud.cfg())return cloudSetup();try{await Cloud.token()}catch(e){return e.code==='auth'?cloudLogin():offline(e)}}
+ try{META=(await B().get('meta','vault'))||null;META?.wp?showLock():showSetup()}catch(e){e.code==='auth'?cloudLogin():offline(e)}}
+window.appBack=()=>{if($('#modal').innerHTML){closeModal();return true}if(KEY&&view.v!=='home'){go(view.v==='akte'?'akten':'home');return true}return false};
+setTimeout(boot,0);
+}
+</script>
+</body>
+</html>

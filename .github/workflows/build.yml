@@ -1,0 +1,65 @@
+name: App bauen
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: SDK-Lizenzen akzeptieren
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: APK bauen
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: APK umbenennen
+        run: cp app/build/outputs/apk/release/app-release.apk Mein-Daten-Digitalisierer.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mein-Daten-Digitalisierer
+          path: Mein-Daten-Digitalisierer.apk
+
+      - name: Als Release veröffentlichen (Download am Handy)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Mein Daten-Digitalisierer 1.0.${{ github.run_number }}
+          body: APK herunterladen und auf dem Handy öffnen, um sie zu installieren. Die App aktualisiert sich danach selbst.
+          files: Mein-Daten-Digitalisierer.apk
+
+  # PC-Version: dieselbe App als Webseite (GitHub Pages).
+  # Einmalig nötig: Settings → Pages → Source: "GitHub Actions".
+  web:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/src/main/assets/www
+      - id: deploy
+        uses: actions/deploy-pages@v4
