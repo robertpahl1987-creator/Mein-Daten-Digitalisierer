@@ -140,6 +140,33 @@ class MainActivity : FragmentActivity() {
 
         if (Build.VERSION.SDK_INT >= 33) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         Updater.schedule(this)
+        Reminders.schedule(this)
+        handleShare(intent)
+    }
+
+    // ----- Geteilte Dateien (aus WhatsApp, Mail, Downloads …) -----
+    private val shared = mutableListOf<Uri>()
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (handleShare(intent)) web.evaluateJavascript("window.onShared&&window.onShared()", null)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun handleShare(i: Intent?): Boolean {
+        if (i == null) return false
+        val list = when (i.action) {
+            Intent.ACTION_SEND -> listOfNotNull(
+                if (Build.VERSION.SDK_INT >= 33) i.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java) else i.getParcelableExtra(Intent.EXTRA_STREAM)
+            )
+            Intent.ACTION_SEND_MULTIPLE ->
+                (if (Build.VERSION.SDK_INT >= 33) i.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java) else i.getParcelableArrayListExtra(Intent.EXTRA_STREAM)).orEmpty()
+            else -> emptyList()
+        }
+        if (list.isEmpty()) return false
+        shared.clear(); shared.addAll(list.take(30))
+        i.action = Intent.ACTION_MAIN
+        return true
     }
 
     override fun onPause() { super.onPause(); web.onPause() }
@@ -258,6 +285,56 @@ class MainActivity : FragmentActivity() {
                 web.evaluateJavascript(
                     "window.__ocrDone(${JSONObject.quote(id)},${JSONObject.quote(text)})", null
                 )
+            }
+        }
+
+        // ----- Teilen / Erinnerungen / Mail mit Anhängen -----
+        @JavascriptInterface
+        fun hasShared(): Boolean = shared.isNotEmpty()
+
+        @JavascriptInterface
+        fun takeShared(): String {
+            val arr = JSONArray()
+            for (u in shared.toList()) runCatching {
+                var name = "datei"
+                contentResolver.query(u, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+                    if (c.moveToFirst()) name = c.getString(0) ?: name
+                }
+                val type = contentResolver.getType(u) ?: if (name.endsWith(".pdf", true)) "application/pdf" else "image/jpeg"
+                val bytes = contentResolver.openInputStream(u)?.use { it.readBytes() } ?: return@runCatching
+                if (bytes.size > 15_000_000) return@runCatching
+                arr.put(JSONObject().put("n", name).put("t", type).put("d", Base64.encodeToString(bytes, Base64.NO_WRAP)))
+            }
+            shared.clear()
+            return arr.toString()
+        }
+
+        @JavascriptInterface
+        fun setReminders(json: String) = Reminders.set(this@MainActivity, json)
+
+        @JavascriptInterface
+        fun shareMail(to: String, subject: String, body: String, filesJson: String) {
+            try {
+                val dir = File(cacheDir, "exports").apply { mkdirs(); listFiles()?.forEach { it.delete() } }
+                val arr = JSONArray(filesJson)
+                val uris = ArrayList<Uri>()
+                for (k in 0 until arr.length()) {
+                    val o = arr.getJSONObject(k)
+                    val f = File(dir, safeName(o.getString("n")))
+                    f.writeBytes(Base64.decode(o.getString("d"), Base64.DEFAULT))
+                    uris.add(FileProvider.getUriForFile(this@MainActivity, "$packageName.files", f))
+                }
+                val i = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                    type = "*/*"
+                    if (to.isNotBlank()) putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    putExtra(Intent.EXTRA_TEXT, body)
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                runOnUiThread { startActivity(Intent.createChooser(i, "Bewerbung senden mit")) }
+            } catch (e: Exception) {
+                toast("Senden fehlgeschlagen: ${e.message}")
             }
         }
 

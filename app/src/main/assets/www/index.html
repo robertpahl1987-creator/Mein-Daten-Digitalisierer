@@ -97,6 +97,8 @@ details.card>summary{font-weight:600;cursor:pointer;min-height:32px;list-style-p
 .seg{display:flex;gap:0;margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{flex:1;border:0;border-radius:0;min-height:40px;font-size:14px}.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
 details.grp{margin:14px 0 4px}details.grp>summary{cursor:pointer;font-size:17px;padding:6px 0;border-bottom:1px solid var(--line)}
 button.pick{width:100%;font:inherit}
+.ms{list-style:none;padding:0;margin:14px 0 6px}.ms li{padding:6px 0 6px 22px;position:relative;color:var(--mut)}.ms li::before{content:'';position:absolute;left:4px;top:13px;width:9px;height:9px;border-radius:50%;border:2px solid var(--mut)}.ms li.ok{color:var(--ink)}.ms li.ok::before{background:var(--ok);border-color:var(--ok)}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:4px 12px;margin:8px 0}dl.kv dt{color:var(--mut)}dl.kv dd{margin:0;text-align:right}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -168,9 +170,9 @@ const B=()=>mode()==='cloud'?Cloud:Local;
 let chain=Promise.resolve();
 const serial=f=>(chain=chain.then(f,f));
 const withT=(p,ms=20000)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Zeitüberschreitung – keine Verbindung')),ms))]);
-async function put(o){E.set(o.id,o);const body=await sealJ(o);await serial(()=>B().set('entries',o.id,body))}
-async function del(id){E.delete(id);await serial(()=>B().del('entries',id))}
-async function loadAll(){E.clear();const docs=await B().list('entries');for(const d of docs){const{id,...body}=d;try{const o=await unsealJ(body);o.id=id;E.set(id,o)}catch(e){console.warn('Eintrag nicht lesbar',id)}}if(!E.has('settings'))E.set('settings',{...DEF,id:'settings'})}
+async function put(o){E.set(o.id,o);const body=await sealJ(o);await serial(()=>B().set('entries',o.id,body));remSync()}
+async function del(id){E.delete(id);await serial(()=>B().del('entries',id));remSync()}
+async function loadAll(){E.clear();const docs=await B().list('entries');for(const d of docs){const{id,...body}=d;try{const o=await unsealJ(body);o.id=id;E.set(id,o)}catch(e){console.warn('Eintrag nicht lesbar',id)}}if(!E.has('settings'))E.set('settings',{...DEF,id:'settings'});remSync()}
 async function compress(file,m=1800,q=.72){const bmp=await createImageBitmap(file);const s=Math.min(1,m/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*s);cv.height=Math.round(bmp.height*s);const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,cv.width,cv.height);g.drawImage(bmp,0,0,cv.width,cv.height);const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',q));return new Uint8Array(await blob.arrayBuffer())}
 async function prep(file,forOcr=false){const name=file.name||'scan',type=file.type||'';
  if(type.startsWith('image/'))return{name,type:'image/jpeg',bytes:await compress(file),ocrBytes:forOcr?await compress(file,2800,.92):null};
@@ -255,15 +257,15 @@ async function copy(t){if(AB){try{AB.copy(t);toast('Kopiert');return}catch{}}try
 const busy=(btn,on,txt)=>{if(!btn)return;btn.disabled=on;if(txt)btn.textContent=txt};
 
 function shell(inner){
- const tabs=[['home','Übersicht'],['akten','Akten'],['neu','+ Erfassen'],['mehr','Einstellungen']];
+ const tabs=[['home','Übersicht'],['akten','Akten'],['neu','+ Erfassen'],['hub','Mehr']];const HUBV=['hub','inso','pkonto','glist','vertraege','bewerb','vernichten','mehr'];
  app.innerHTML=`<header class="top"><b>Mein Daten-Digitalisierer</b><button id="lockBtn" class="ghost" aria-label="Jetzt sperren">Sperren</button></header>
- <nav class="nav">${tabs.map(([v,l])=>`<button data-go="${v}" class="${v==='neu'?'plus':''}" aria-current="${view.v===v||(v==='akten'&&view.v==='akte')}">${l}</button>`).join('')}</nav>
+ <nav class="nav">${tabs.map(([v,l])=>`<button data-go="${v}" class="${v==='neu'?'plus':''}" aria-current="${view.v===v||(v==='akten'&&view.v==='akte')||(v==='hub'&&HUBV.includes(view.v))}">${l}</button>`).join('')}</nav>
  <main class="wrap">${inner}</main>`;
  $('#lockBtn').onclick=lock;$$('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
  $$('[data-akte]').forEach(b=>b.onclick=()=>go('akte',{key:b.dataset.akte}));
  window.scrollTo(0,0)}
 function go(v,extra={}){view={v,...extra};closeModal();render()}
-function render(){if(!KEY)return;({home:vHome,akten:vAkten,akte:vAkte,neu:vNeu,mehr:vMehr}[view.v]||vHome)()}
+function render(){if(!KEY)return;({home:vHome,akten:vAkten,akte:vAkte,neu:vNeu,mehr:vMehr,hub:vHub,inso:vInso,pkonto:vPkonto,glist:vGlist,vertraege:vVertraege,bewerb:vBewerb,vernichten:vVernichten}[view.v]||vHome)()}
 const badge=k=>`<span class="badge b-${KC[k]||'q'}">${esc(KL[k]||k)}</span>`;
 function akteCard(a){const rl=ROLLEN[a.neuest.rolle]||'';const amount=a.k==='neu'?a.offen:a.k==='gemischt'?a.alt+a.offen:a.alt;
  const neuNach=dOf(a.neuest)>=ST().stichtag&&a.k!=='neu'&&a.k!=='verf';
@@ -329,7 +331,7 @@ function vAkte(){const a=akten().find(x=>x.key===view.key);if(!a)return go('akte
   <dl><dt>Von</dt><dd>${esc(b.firma||'–')} <span class="note">(${esc(ROLLEN[b.rolle]||'')})</span></dd><dt>Datum</dt><dd>${fd(b.bdatum)}${b.zust?` · zugestellt ${fd(b.zust)}`:''}</dd>
   ${b.az?`<dt>Zeichen</dt><dd>${esc(b.az)}</dd>`:''}${b.lvon||b.lbis?`<dt>Leistung</dt><dd>${fd(b.lvon)} – ${fd(b.lbis)}</dd>`:''}${b.rdatum?`<dt>Rechnung</dt><dd>${fd(b.rdatum)}</dd>`:''}
   ${b.betrag?`<dt>Betrag</dt><dd class="num">${eur(b.betrag)}</dd>`:''}${b.faellig?`<dt>Fällig</dt><dd>${fd(b.faellig)}</dd>`:''}${fristOf(b)?`<dt>Frist</dt><dd class="frist">${fd(fristOf(b))}</dd>`:''}
-  ${b.notiz?`<dt>Notiz</dt><dd>${esc(b.notiz)}</dd>`:''}<dt>Warum</dt><dd class="note">${esc(x.c.why)}</dd>${b.done?`<dt>Erledigt</dt><dd>${esc(b.doneNote||'ja')}</dd>`:''}</dl>
+  ${b.notiz?`<dt>Notiz</dt><dd>${esc(b.notiz)}</dd>`:''}<dt>Was ist das?</dt><dd>${esc(explain(b))}</dd><dt>Warum</dt><dd class="note">${esc(x.c.why)}</dd>${b.done?`<dt>Erledigt</dt><dd>${esc(b.doneNote||'ja')}</dd>`:''}</dl>
   ${(b.files||[]).length?`<div class="thumbs">${b.files.map((f,j)=>`<button data-file="${b.id}:${j}">${f.type==='application/pdf'?'PDF':'Foto'} ${j+1} ansehen</button>`).join('')}</div>`:''}
   <div class="row">${x.c.k!=='verf'&&x.c.k!=='neu'?(isGer(b)?`<button class="pri" data-court="${b.id}">Widerspruch / Antwort ans Gericht</button>`:`<button class="pri" data-mail="${b.id}">Hinweis-E-Mail</button>`):''}
   <button data-edit="${b.id}">Bearbeiten</button><button data-donet="${b.id}">${b.done?'Wieder öffnen':'Erledigt'}</button><button class="ghost" data-del="${b.id}">Löschen</button></div></article>`}).join('')}
@@ -448,7 +450,7 @@ function vNeu(){const ed=view.edit?E.get(view.edit):null,b=ed||{...(view.preset|
  const upd=()=>{const o=read();const c=classB(o);const ex=!o.akte&&normAz(o.az)?A.find(a=>a.key==='az:'+normAz(o.az)):o.akte?A.find(a=>a.key===o.akte):null;
   const k=c.k==='?'&&ex&&(ex.k==='alt'||ex.k==='neu')?ex.k:c.k;const ger=isGer(o);
   $('#prevBadge').innerHTML=badge(k);$('#prevWhy').textContent=k!==c.k?'Über die bestehende Akte zugeordnet':c.why;
-  const msg=[ex&&!ed?`Kommt zur Akte <b>${esc(ex.glaeubiger)}</b> (${ex.briefe.length} Schreiben).`:'',
+  const msg=[o.typ!=='info'||o.rolle!=='glaeubiger'?`<span class="note">${esc(explain(o))}</span>`:'',ex&&!ed?`Kommt zur Akte <b>${esc(ex.glaeubiger)}</b> (${ex.briefe.length} Schreiben).`:'',
    k==='alt'&&o.bdatum>=ST().stichtag&&!ger?'<b>Alt-Gläubiger schreibt nach der Eröffnung</b> – nach dem Speichern kommt die Hinweis-E-Mail.':'',
    ger&&k!=='verf'?'<b>Gericht</b> – nach dem Speichern kommt die Vorlage für Widerspruch bzw. Antwort.':'',
    k==='neu'?'<b>Neue Rechnung</b> – musst du selbst bezahlen.':'',
@@ -476,6 +478,7 @@ function vNeu(){const ed=view.edit?E.get(view.edit):null,b=ed||{...(view.preset|
  const sb=$('#scanB');if(sb)sb.onclick=async()=>{busy(sb,true);$('#flInfo').textContent='Scanner wird geöffnet …';const pages=await scanPages();busy(sb,false);
   if(pages===null){$('#flInfo').textContent='';return}if(!pages.length){$('#flInfo').textContent='Scanner nicht verfügbar – bitte „Foto oder PDF aus der Galerie“ nutzen.';return}
   addFiles(pages.map((u8,i)=>new File([u8],`seite-${files.length+i+1}.jpg`,{type:'image/jpeg'})))};
+ if(view.shared&&!ed){const sf=view.shared;view.shared=null;addFiles(sf)}
  const pb=$('#parse');if(pb)pb.onclick=()=>{const t=$('#txt').value;if(!t.trim())return toast('Bitte zuerst Text einfügen');docs=docs.length?docs:[null];apply(parseText(t))};
  const cc=$('[data-cancel]');if(cc)cc.onclick=()=>go('akte',{key:akteKey(ed)});
  $('#bf').onsubmit=async e=>{e.preventDefault();const o=read();if(!o.firma){F('firma').focus();return toast('Bitte Absender eintragen')}const btn=$('#sv');busy(btn,true,'Wird verschlüsselt …');
@@ -591,9 +594,227 @@ function kanzleiModal(a){const s=ST(),b=a.neuest;const body=`Sehr geehrte Damen 
  modal(`<h2>An die Kanzlei</h2><label for="k_tx">Text</label><textarea id="k_tx" rows="14"></textarea><div class="row"><a class="btn pri" id="k_open" target="_blank" rel="noopener">In Mail-App öffnen</a><button id="k_cp">Text kopieren</button></div><p class="note">Das Foto des Schreibens bitte in der Mail-App anhängen (vorher unter „Foto ansehen“ herunterladen).</p>`);
  $('#k_tx').value=body;const sync=()=>{$('#k_open').href=mailto(s.kanzleiMail,'',`Insolvenzverfahren ${s.insoAz}: Schreiben von ${b.firma}`,$('#k_tx').value)};$('#k_tx').oninput=sync;sync();$('#k_cp').onclick=()=>copy($('#k_tx').value)}
 
+/* ---------- Zusatz-Module ---------- */
+const ofKind=k=>[...E.values()].filter(o=>o.kind===k);
+const one=(k,def={})=>ofKind(k)[0]||{id:nid(),kind:k,...def};
+const addM=(a,n)=>{const d=new Date(a);d.setMonth(d.getMonth()+n);return d.toISOString().slice(0,10)};
+const STOP=/^(gmbh|mbh|co|kg|ag|ohg|se|ug|e\.?v|und|der|die|das|fuer|für|von|zu|inkasso|rechtsanwalt|rechtsanwälte|rechtsanwaelte|kanzlei|partner|partnerschaftsgesellschaft|mbb|germany|deutschland|service|services|bank|versicherung|gruppe|group)$/;
+const nameWords=s=>String(s||'').toLowerCase().replace(/[^a-z0-9äöüß ]/g,' ').split(/\s+/).filter(w=>w.length>2&&!STOP.test(w));
+const sameName=(a,b)=>{const A=nameWords(a),Bw=nameWords(b);return A.length&&Bw.length&&A.some(w=>Bw.includes(w))};
+const field=(id,label,val='',type='text',extra='')=>`<div class="fld"><label for="${id}">${label}</label><input id="${id}" type="${type}" ${extra} value="${esc(val)}"></div>`;
+const val=id=>($('#'+id)?.value||'').trim();
+const back=(to='hub',l='← Zurück')=>`<button class="ghost" data-go2="${to}">${l}</button>`;
+const bindGo=()=>$$('[data-go2]').forEach(b=>b.onclick=()=>go(b.dataset.go2));
+
+/* „Was ist das?“ */
+function explain(b){const T={
+ rechnung:'Rechnung für eine Leistung. Entstanden vor der Eröffnung → Alt-Forderung, nicht selbst zahlen. Danach → selbst zahlen.',
+ mahnung:'Der Absender fordert Geld. Bei einer Alt-Forderung weist du auf das Insolvenzverfahren hin und zahlst nicht.',
+ mahnbescheid:'Das Mahngericht hat auf Antrag des Gläubigers einen Zahlungsbefehl erlassen, ohne die Forderung zu prüfen. Widerspruch ist innerhalb von 2 Wochen ab Zustellung möglich.',
+ vb:'Vollstreckungsbescheid: Damit dürfte der Gläubiger vollstrecken. Einspruch innerhalb von 2 Wochen ab Zustellung.',
+ pfaendung:'Jemand will Geld oder Sachen pfänden. Für Alt-Gläubiger ist das während der Insolvenz unzulässig – sofort die Kanzlei informieren.',
+ klage:'Ein Gerichtsverfahren (Klage oder Termin). Durch die Insolvenz meist unterbrochen – trotzdem sofort die Kanzlei informieren und Fristen beachten.'};
+ if(T[b.typ]&&b.typ!=='info')return T[b.typ];
+ return({insogericht:'Schreiben deines Insolvenzgerichts. Genau lesen, Fristen beachten, Original aufheben.',verwalter:'Dein Insolvenzverwalter bzw. Treuhänder. Fragen und Aufforderungen von ihm zügig beantworten.',kanzlei:'Post deiner eigenen Kanzlei.',behoerde:'Schreiben einer Behörde – auf Fristen achten.',gv:'Der Gerichtsvollzieher vollstreckt für Gläubiger. Bei Alt-Forderungen sofort die Kanzlei informieren.'})[b.rolle]||'Information – meist ist nichts weiter zu tun.'}
+
+/* Original aufheben oder vernichten? */
+const mustKeep=b=>b.keep===true||(b.keep!==false&&(VERF.has(b.rolle)||b.rolle==='gericht'||b.rolle==='gv'||GT.has(b.typ)));
+
+/* ---------- Erinnerungen ans Handy ---------- */
+let remT=0;function remSync(){clearTimeout(remT);remT=setTimeout(remPush,1500)}
+function remPush(){if(!AB||!KEY)return;try{if(!AB.setReminders)return}catch{return}
+ const out=[],add=(key,d,t)=>{if(!d)return;for(const n of [3,0]){const at=addD(d,-n);out.push({id:key+':'+n,d:at,t:t+(n?` (in ${n} Tagen, ${fd(d)})`:` (heute, ${fd(d)})`)})}};
+ const A=akten();for(const t of todos(A))if(t.frist)add('f'+t.b.id,t.frist,'Gerichtsfrist läuft ab');
+ for(const a of A)if(!a.done&&a.offen>0)for(const x of a.cls)if((x.c.k==='neu'||x.c.k==='teil')&&x.b.faellig&&!x.b.done)add('z'+x.b.id,x.b.faellig,'Rechnung fällig');
+ for(const v of ofKind('vertrag')){if(v.gekuendigt)continue;const d=kdl(v).bis;if(d){out.push({id:'v'+v.id+':14',d:addD(d,-14),t:'Kündigungsfrist endet am '+fd(d)});add('v'+v.id,d,'Kündigungsfrist endet')}}
+ for(const w of ofKind('bewerbung'))if(w.status==='gesendet'&&w.gesendet)out.push({id:'b'+w.id,d:addD(w.gesendet,14),t:'Bewerbung nachfassen'});
+ try{AB.setReminders(JSON.stringify(out.filter(x=>x.d>=addD(today(),-1))))}catch{}}
+
+/* ---------- Mehr ---------- */
+function vHub(){const nG=ofKind('glist')[0]?.items?.length||0,nV=ofKind('vertrag').length,nB=ofKind('bewerbung').length,nX=ofKind('brief').filter(b=>(b.files||[]).length&&!mustKeep(b)&&!b.shred).length;
+ const c=(v,t,d)=>`<button class="akte" data-go2="${v}"><strong>${t}</strong><div class="note">${d}</div></button>`;
+ shell(`<h1>Mehr</h1><h2>Insolvenz</h2>${c('inso','Countdown & Pflichten','Meilensteine bis zur Restschuldbefreiung, Mitteilungen bei Umzug, Jobwechsel usw.')}
+ ${c('pkonto','P-Konto & Lohn','Monatlicher Überblick: Lohn, Abführung, Sperrungen, Freigaben')}
+ ${c('glist','Gläubigerliste abgleichen',nG?`${nG} Gläubiger auf der Liste`:'Liste aus deinem Antrag erfassen und mit der Post vergleichen')}
+ <h2 style="margin-top:22px">Papierkram</h2>${c('vertraege','Verträge & Kündigungen',nV?`${nV} Verträge`:'Laufzeiten, Kündigungsfristen, Kündigung auf Knopfdruck')}
+ ${c('bewerb','Bewerbungen',nB?`${nB} Bewerbungen`:'Eine Vorlage, viele Firmen – mit Lebenslauf im Anhang')}
+ ${c('vernichten','Papier vernichten',nX?`${nX} Schreiben dürfen weg`:'Was digital gesichert ist und weg darf')}
+ <h2 style="margin-top:22px">App</h2>${c('mehr','Einstellungen','Verfahrensdaten, Sicherheit, Fingerabdruck, Sicherung')}`);bindGo()}
+
+/* ---------- Countdown & Pflichten ---------- */
+const PFL={umzug:{t:'Umzug / neue Anschrift',f:[['neu','Neue Anschrift','','textarea'],['ab','Gültig ab','','date']],x:v=>`ich teile mit, dass ich ab dem ${fd(v.ab)} unter folgender neuer Anschrift wohne:\n\n${v.neu}`},
+ job:{t:'Neue Arbeitsstelle / Jobwechsel',f:[['ag','Neuer Arbeitgeber (Name und Anschrift)','','textarea'],['ab','Beginn','','date'],['netto','Voraussichtliches Nettoeinkommen (€)']],x:v=>`ich teile mit, dass ich ab dem ${fd(v.ab)} bei folgendem Arbeitgeber beschäftigt bin:\n\n${v.ag}${v.netto?`\n\nVoraussichtliches monatliches Nettoeinkommen: ${eur(pnum(v.netto))}`:''}\n\nEine Kopie des Arbeitsvertrags reiche ich auf Wunsch nach.`},
+ arbeitslos:{t:'Arbeitslosigkeit',f:[['ab','Arbeitslos seit','','date'],['info','Bisheriger Arbeitgeber / Grund']],x:v=>`ich teile mit, dass mein Arbeitsverhältnis${v.info?` (${v.info})`:''} beendet ist und ich seit dem ${fd(v.ab)} arbeitslos bin. Ich bemühe mich um eine neue Beschäftigung.`},
+ erbe:{t:'Erbschaft / Schenkung',f:[['was','Was (z. B. Erbschaft nach …, Schenkung von …)'],['wert','Geschätzter Wert (€)'],['am','Datum','','date']],x:v=>`ich teile mit, dass mir am ${fd(v.am)} Folgendes zugefallen ist: ${v.was}${v.wert?`, geschätzter Wert ${eur(pnum(v.wert))}`:''}.`},
+ geld:{t:'Größerer Geldeingang',f:[['betrag','Betrag (€)'],['von','Herkunft (z. B. Steuererstattung, Abfindung)'],['am','Eingang am','','date']],x:v=>`ich teile mit, dass mir am ${fd(v.am)} ein Betrag von ${eur(pnum(v.betrag))} zugeflossen ist. Herkunft: ${v.von}.`}};
+function vInso(){const s=ST(),st=s.stichtag,end=addY(st,3),tot=dd(st,end),done=Math.min(tot,Math.max(0,dd(st,today()))),pct=Math.round(done/tot*100);
+ const ms=[[st,'Eröffnung des Verfahrens'],[addM(st,3),'Gläubiger melden ihre Forderungen beim Verwalter an (meist in den ersten Monaten)'],[addY(st,1),'1 Jahr geschafft'],[addY(st,2),'2 Jahre geschafft'],[end,'Restschuldbefreiung möglich – das Gericht entscheidet']];
+ shell(`${back()}<h1 style="margin-top:12px">Countdown</h1>
+ <div class="card"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><b>${pct} % geschafft</b><span class="note">noch ${Math.max(0,dd(today(),end))} Tage · bis ${fd(end)}</span></div>
+ <div class="meter" style="height:12px"><i style="width:${pct}%;background:var(--ok)"></i></div>
+ <ul class="ms">${ms.map(([d,t])=>`<li class="${d<=today()?'ok':''}"><b>${fd(d)}</b> ${esc(t)}</li>`).join('')}</ul>
+ <p class="note">Regelfall nach heutigem Recht: 3 Jahre ab Eröffnung. Das genaue Datum legt das Gericht fest.</p></div>
+ <h2>Mitteilung machen</h2><p class="note">Während des Verfahrens musst du diese Änderungen unverzüglich mitteilen. Die App schreibt die Mitteilung für dich.</p>
+ ${Object.entries(PFL).map(([k,v])=>`<button class="akte" data-pfl="${k}"><strong>${v.t}</strong></button>`).join('')}
+ <div class="card"><h3>Laufende Pflichten</h3><ul class="warnlist"><li>Arbeiten oder sich ernsthaft um Arbeit bemühen</li><li>Keine neuen Schulden machen, neue Rechnungen pünktlich zahlen</li><li>Keine Zahlungen an Alt-Gläubiger</li><li>Anfragen von Gericht und Verwalter beantworten</li></ul><p class="note">Keine Rechtsberatung – im Zweifel die Kanzlei fragen.</p></div>`);
+ bindGo();$$('[data-pfl]').forEach(b=>b.onclick=()=>pflModal(b.dataset.pfl))}
+function pflModal(k){const p=PFL[k],s=ST();
+ modal(`<h2>${p.t}</h2>${p.f.map(([id,l,v,t])=>t==='textarea'?`<label for="p_${id}">${l}</label><textarea id="p_${id}" rows="3"></textarea>`:field('p_'+id,l,v,t||'text')).join('')}<div class="row"><button class="pri" id="pg">Mitteilung erstellen</button></div>`);
+ $('#pg').onclick=()=>{const v={};for(const[id]of p.f)v[id]=$('#p_'+id).value.trim();
+  const body=`Mitteilung im Insolvenzverfahren Az. ${s.insoAz||'[Az.]'}\n\nSehr geehrte Damen und Herren,\n\n${p.x(v)}\n\nMit freundlichen Grüßen\n\n\n\n______________________________\n${s.name||'[Name]'}`;
+  const subj=`Mitteilung im Insolvenzverfahren ${s.insoAz||''} – ${p.t}`;
+  modal(`<h2>${p.t}</h2><label for="p_tx">Text</label><textarea id="p_tx" rows="14"></textarea>
+  <div class="row"><a class="btn pri" id="p_mail" target="_blank" rel="noopener">E-Mail an Verwalter</a><button id="p_pdf">PDF ans Gericht</button><button id="p_cp">Kopieren</button></div>
+  <p class="note">An den Verwalter${s.verwalterMail?` (${esc(s.verwalterMail)})`:''} per E-Mail, ans Gericht ausgedruckt und unterschrieben per Post. Kanzlei ist in Kopie.</p>`);
+  $('#p_tx').value=body;const sync=()=>{$('#p_mail').href=mailto(s.verwalterMail,s.kanzleiMail,subj,$('#p_tx').value)};$('#p_tx').oninput=sync;sync();
+  $('#p_cp').onclick=()=>copy($('#p_tx').value);
+  $('#p_pdf').onclick=()=>letterPdf(`Mitteilung-${k}.pdf`,`${s.insoGericht||'[Insolvenzgericht]'}\n${s.insoGerichtAdr||''}`,`${(s.adresse||'').split('\n').pop().replace(/^\d{5}\s*/,'')||'[Ort]'}, den ${fd(today())}\n\n`+$('#p_tx').value)}}
+
+/* ---------- P-Konto ---------- */
+function vPkonto(){const L=ofKind('pkonto').sort((a,b)=>b.monat.localeCompare(a.monat)),s=ST();
+ const row=p=>{const off=Math.max(0,(p.gesperrt||0)-(p.frei||0)),rest=(p.netto||0)-(p.abg||0)-off;return `<div class="card"><div class="hd2"><h3>${new Date(p.monat+'-01').toLocaleDateString('de-DE',{month:'long',year:'numeric'})}</h3><button class="ghost" data-dp="${p.id}" aria-label="Löschen">✕</button></div>
+  <dl class="kv"><dt>Nettolohn</dt><dd class="num">${eur(p.netto)}</dd><dt>An Verwalter abgeführt</dt><dd class="num">${eur(p.abg)}</dd><dt>Auf P-Konto gesperrt</dt><dd class="num">${eur(p.gesperrt)}</dd><dt>Davon freigegeben</dt><dd class="num">${eur(p.frei)}</dd><dt><b>Dir bleibt</b></dt><dd class="num"><b>${eur(rest)}</b></dd></dl>
+  ${off>0?`<p class="frist">${eur(off)} noch gesperrt</p><button class="pri" data-fr="${p.id}">Freigabe beim Verwalter anfragen</button>`:''}${p.notiz?`<p class="note">${esc(p.notiz)}</p>`:''}</div>`};
+ shell(`${back()}<h1 style="margin-top:12px">P-Konto & Lohn</h1>
+ <form id="pk" class="card"><h3>Monat eintragen</h3><div class="grid2">${field('k_m','Monat',today().slice(0,7),'month')}${field('k_n','Nettolohn (€)','','text','inputmode="decimal"')}${field('k_a','An Verwalter abgeführt (€)','','text','inputmode="decimal"')}${field('k_g','Auf P-Konto gesperrt (€)','','text','inputmode="decimal"')}${field('k_f','Davon freigegeben (€)','','text','inputmode="decimal"')}${field('k_x','Notiz')}</div><div class="row"><button class="pri">Speichern</button></div>
+ <p class="note">Den Freibetrag deines P-Kontos zeigt deine Bank. Er wird jedes Jahr zum 1. Juli angepasst.</p></form>
+ ${L.map(row).join('')||'<p class="note">Noch kein Monat eingetragen.</p>'}`);bindGo();
+ $('#pk').onsubmit=async e=>{e.preventDefault();const m=val('k_m');if(!m)return toast('Monat wählen');const ex=L.find(p=>p.monat===m);
+  await put({...(ex||{id:nid(),kind:'pkonto'}),monat:m,netto:pnum(val('k_n')),abg:pnum(val('k_a')),gesperrt:pnum(val('k_g')),frei:pnum(val('k_f')),notiz:val('k_x')});toast('Gespeichert');vPkonto()};
+ $$('[data-dp]').forEach(b=>b.onclick=async()=>{if(await ask('Monat löschen?','Löschen',true)){await del(b.dataset.dp);vPkonto()}});
+ $$('[data-fr]').forEach(b=>b.onclick=()=>{const p=E.get(b.dataset.fr),off=(p.gesperrt||0)-(p.frei||0),mo=new Date(p.monat+'-01').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+  const body=`Sehr geehrte Damen und Herren,\n\nin meinem Insolvenzverfahren (Az. ${s.insoAz||'[Az.]'}) ist auf meinem P-Konto für ${mo} ein Betrag von ${eur(off)} über dem Freibetrag gesperrt.\n\nMein Arbeitgeber führt den pfändbaren Teil meines Lohns bereits direkt an Sie ab (${mo}: ${eur(p.abg)}). Der gesperrte Betrag stammt aus meinem unpfändbaren Lohn bzw. aus einer Verschiebung von Zahlungseingängen. Ich bitte daher um Prüfung und kurzfristige Freigabe, da ich das Geld für Miete und Lebensunterhalt benötige.\n\nMit freundlichen Grüßen\n${s.name||''}`;
+  modal(`<h2>Freigabe anfragen</h2><textarea id="fr_t" rows="14"></textarea><div class="row"><a class="btn pri" id="fr_m" target="_blank" rel="noopener">E-Mail an Verwalter</a><button id="fr_c">Kopieren</button></div><p class="note">Bitte den Text prüfen und an deinen Fall anpassen.</p>`);
+  $('#fr_t').value=body;const sy=()=>{$('#fr_m').href=mailto(s.verwalterMail,s.kanzleiMail,`Freigabe P-Konto – Az. ${s.insoAz||''}`,$('#fr_t').value)};$('#fr_t').oninput=sy;sy();$('#fr_c').onclick=()=>copy($('#fr_t').value)})}
+
+/* ---------- Gläubigerliste ---------- */
+function vGlist(){const g=one('glist',{items:[]}),items=g.items||[],A=akten().filter(a=>a.k!=='verf');
+ const hit=a=>items.some(i=>(normAz(i.az)&&a.briefe.some(b=>normAz(b.az)===normAz(i.az)))||a.chain.some(c=>sameName(c.firma,i.name)));
+ const miss=A.filter(a=>!hit(a)),cnt=i=>A.filter(a=>(normAz(i.az)&&a.briefe.some(b=>normAz(b.az)===normAz(i.az)))||a.chain.some(c=>sameName(c.firma,i.name))).length;
+ const save=async it=>{g.items=it;await put({...g});vGlist()};
+ shell(`${back()}<h1 style="margin-top:12px">Gläubigerliste</h1>
+ <p class="note">Trag die Gläubiger aus deinem Insolvenzantrag ein. Die App prüft, ob dir jemand schreibt, der dort nicht steht. Solche Gläubiger solltest du der Kanzlei melden.</p>
+ ${items.length&&miss.length?`<div class="banner"><b>${miss.length} Absender stehen nicht auf der Liste:</b><ul class="warnlist">${miss.map(a=>`<li>${esc(a.glaeubiger)}${a.az?' · '+esc(a.az):''}</li>`).join('')}</ul><div class="row"><a class="btn pri" id="gl_m" target="_blank" rel="noopener">Kanzlei informieren</a></div></div>`:items.length?'<div class="banner">Alle erfassten Absender stehen auf der Liste.</div>':''}
+ <form id="gf" class="card"><h3>Gläubiger hinzufügen</h3><div class="grid2">${field('g_n','Name')}${field('g_a','Aktenzeichen (optional)')}${field('g_b','Betrag laut Antrag (€, optional)','','text','inputmode="decimal"')}</div><div class="row"><button class="pri">Hinzufügen</button><button type="button" id="g_imp">Liste fotografieren / einfügen</button></div></form>
+ <h2>Auf der Liste (${items.length})</h2>
+ ${items.map(i=>`<div class="todo"><div><b>${esc(i.name)}</b><small>${i.az?'Az. '+esc(i.az)+' · ':''}${i.betrag?eur(i.betrag)+' · ':''}${cnt(i)} Akte(n) zugeordnet</small></div><button class="ghost" data-gd="${i.id}" aria-label="Entfernen">✕</button></div>`).join('')||'<p class="note">Noch leer.</p>'}`);bindGo();
+ const s=ST(),gm=$('#gl_m');if(gm)gm.href=mailto(s.kanzleiMail,'',`Insolvenzverfahren ${s.insoAz}: Gläubiger nicht in der Liste`,`Sehr geehrte Damen und Herren,\n\nvon folgenden Absendern habe ich Post erhalten, die in meiner Gläubigerliste nicht aufgeführt sind:\n\n${miss.map(a=>`- ${a.glaeubiger}${a.aktuell&&a.aktuell!==a.glaeubiger?' (jetzt: '+a.aktuell+')':''}${a.az?', Zeichen '+a.az:''}${a.alt?', '+eur(a.alt):''}`).join('\n')}\n\nBitte prüfen Sie, ob diese nachgemeldet werden müssen.\n\nMit freundlichen Grüßen\n${s.name||''}`);
+ $('#gf').onsubmit=e=>{e.preventDefault();const n=val('g_n');if(!n)return toast('Name eintragen');save([...items,{id:nid(),name:n,az:val('g_a'),betrag:pnum(val('g_b'))}])};
+ $$('[data-gd]').forEach(b=>b.onclick=()=>save(items.filter(i=>i.id!==b.dataset.gd)));
+ $('#g_imp').onclick=()=>{modal(`<h2>Liste übernehmen</h2><p class="note">Seite(n) der Gläubigerliste scannen oder Text einfügen. Jede Zeile mit einem Namen wird ein Vorschlag.</p>
+  <div class="row">${scanOk()?'<button class="pri" id="gi_s">Seiten scannen</button>':''}<label class="btn" for="gi_f">Foto wählen</label><input id="gi_f" class="vh" type="file" accept="image/*" multiple></div>
+  <textarea id="gi_t" rows="8" placeholder="Text der Liste"></textarea><div class="row"><button id="gi_p">Vorschläge anzeigen</button></div><div id="gi_l"></div>`);
+  const ocrAll=async fl=>{$('#gi_l').innerHTML='<p class="note">Lese Text …</p>';let t='';for(const f of fl){const d=await ocrDoc(await prep(f,true));if(d)t+=(d.lines?.length?rowsText(toRows(d.lines)):d.text||'')+'\n'}$('#gi_t').value=t;$('#gi_p').click()};
+  const gs=$('#gi_s');if(gs)gs.onclick=async()=>{const p=await scanPages();if(p&&p.length)ocrAll(p.map((u,i)=>new File([u],`l${i}.jpg`,{type:'image/jpeg'})))};
+  $('#gi_f').onchange=e=>{if(AB)ocrAll([...e.target.files]);else toast('Texterkennung nur in der App – bitte Text einfügen')};
+  $('#gi_p').onclick=()=>{const c=$('#gi_t').value.split('\n').map(l=>l.trim()).filter(l=>/[A-Za-zÄÖÜäöü]{3}/.test(l)&&l.length<120&&!/^(nr|lfd|name|gläubiger|forderung|summe|seite|anlage)\b/i.test(l)).map(l=>{const a=amtsIn(l);return{name:l.replace(/\d{1,3}(\.\d{3})*,\d{2}\s*(€|EUR)?/g,'').replace(/^\d+[.)]?\s+/,'').replace(/\s{2,}.*/,'').trim(),betrag:a.length?a[a.length-1].v:0}}).filter(x=>x.name.length>2);
+   $('#gi_l').innerHTML=c.length?c.map((x,i)=>`<label style="display:flex;gap:10px;align-items:center;color:var(--ink)"><input type="checkbox" data-gi="${i}" checked style="width:22px;min-height:22px"> ${esc(x.name)}${x.betrag?` <span class="note">${eur(x.betrag)}</span>`:''}</label>`).join('')+'<div class="row"><button class="pri" id="gi_ok">Ausgewählte übernehmen</button></div>':'<p class="note">Keine Namen gefunden.</p>';
+   const ok=$('#gi_ok');if(ok)ok.onclick=()=>{const sel=$$('[data-gi]').filter(x=>x.checked).map(x=>c[+x.dataset.gi]);closeModal();save([...items,...sel.map(x=>({id:nid(),name:x.name,az:'',betrag:x.betrag}))])}}}}
+
+/* ---------- Verträge ---------- */
+function kdl(v){if(v.gekuendigt)return{};const f=+v.frist||0;if(!v.ende)return{bis:'',zum:''};
+ if(v.ende>today()){const bis=addM(v.ende,-f);if(bis>=today())return{bis,zum:v.ende}}
+ const mon=v.verl==='monatlich'?1:v.verl==='12'?12:0;if(!mon)return{bis:'',zum:v.ende,abgelaufen:v.ende<=today()};
+ let zum=v.ende;while(addM(zum,-(v.verl==='monatlich'?1:f))<today())zum=addM(zum,mon);return{bis:addM(zum,-(v.verl==='monatlich'?1:f)),zum}}
+function vVertraege(){const L=ofKind('vertrag').sort((a,b)=>(kdl(a).bis||'9').localeCompare(kdl(b).bis||'9'));
+ shell(`${back()}<h1 style="margin-top:12px">Verträge</h1>
+ <div class="row" style="margin-bottom:8px"><button class="pri" id="v_new">+ Vertrag hinzufügen</button></div>
+ ${L.map(v=>{const k=kdl(v);return `<div class="card"><div class="hd2"><h3>${esc(v.anbieter)}</h3>${v.gekuendigt?'<span class="badge b-verf">gekündigt</span>':''}</div>
+  <dl class="kv">${v.art?`<dt>Art</dt><dd>${esc(v.art)}</dd>`:''}${v.nr?`<dt>Vertrags-Nr.</dt><dd>${esc(v.nr)}</dd>`:''}${v.kosten?`<dt>Kosten</dt><dd class="num">${eur(v.kosten)} / Monat</dd>`:''}${v.ende?`<dt>Laufzeit bis</dt><dd>${fd(v.ende)}</dd>`:''}
+  ${v.gekuendigt?`<dt>Gekündigt am</dt><dd>${fd(v.gekuendigt)}</dd>`:k.bis?`<dt>Kündigen bis</dt><dd class="${dd(today(),k.bis)<30?'frist':''}">${fd(k.bis)} (zum ${fd(k.zum)})</dd>`:''}</dl>
+  <div class="row">${v.gekuendigt?'':`<button class="pri" data-vk="${v.id}">Kündigung schreiben</button>`}<button data-ve="${v.id}">Bearbeiten</button></div></div>`}).join('')||'<p class="note">Noch keine Verträge. Trag z. B. Handy, Strom, Versicherungen und Abos ein.</p>'}
+ ${L.length?`<p class="note">Monatlich zusammen: <b>${eur(L.filter(v=>!v.gekuendigt).reduce((s,v)=>s+(v.kosten||0),0))}</b></p>`:''}`);bindGo();
+ $('#v_new').onclick=()=>vEdit();$$('[data-ve]').forEach(b=>b.onclick=()=>vEdit(E.get(b.dataset.ve)));$$('[data-vk]').forEach(b=>b.onclick=()=>kuendModal(E.get(b.dataset.vk)))}
+function vEdit(v={}){modal(`<h2>${v.id?'Vertrag bearbeiten':'Neuer Vertrag'}</h2>${field('v_a','Anbieter',v.anbieter)}${field('v_t','Art (z. B. Handy, Strom, Fitness)',v.art)}${field('v_n','Vertrags- / Kundennummer',v.nr)}${field('v_k','Kosten pro Monat (€)',v.kosten?String(v.kosten).replace('.',','):'','text','inputmode="decimal"')}
+ ${field('v_e','Mindestlaufzeit endet am',v.ende,'date')}${field('v_f','Kündigungsfrist (Monate)',v.frist??1,'number','min="0" max="24"')}
+ <label for="v_v">Danach</label><select id="v_v"><option value="monatlich" ${v.verl!=='12'&&v.verl!=='keine'?'selected':''}>monatlich kündbar</option><option value="12" ${v.verl==='12'?'selected':''}>verlängert sich um 12 Monate</option><option value="keine" ${v.verl==='keine'?'selected':''}>endet automatisch</option></select>
+ ${field('v_m','E-Mail für Kündigungen',v.email,'email')}<label for="v_d">Anschrift des Anbieters</label><textarea id="v_d" rows="2">${esc(v.adr||'')}</textarea>
+ <div class="row"><button class="pri" id="v_s">Speichern</button>${v.id?'<button class="ghost" id="v_x">Löschen</button>':''}</div>`);
+ $('#v_s').onclick=async()=>{if(!val('v_a'))return toast('Anbieter eintragen');await put({...v,id:v.id||nid(),kind:'vertrag',anbieter:val('v_a'),art:val('v_t'),nr:val('v_n'),kosten:pnum(val('v_k')),ende:val('v_e'),frist:+val('v_f')||0,verl:$('#v_v').value,email:val('v_m'),adr:$('#v_d').value.trim()});closeModal();vVertraege()};
+ const x=$('#v_x');if(x)x.onclick=async()=>{if(await ask('Vertrag löschen?','Löschen',true)){await del(v.id);vVertraege()}}}
+function kuendModal(v){const s=ST(),k=kdl(v);
+ const body=`${(s.adresse||'').split('\n').pop().replace(/^\d{5}\s*/,'')||'[Ort]'}, den ${fd(today())}\n\nKündigung${v.nr?` – Vertrags-/Kundennummer ${v.nr}`:''}\n\nSehr geehrte Damen und Herren,\n\nhiermit kündige ich meinen Vertrag${v.nr?` mit der Nummer ${v.nr}`:''} fristgerecht zum nächstmöglichen Zeitpunkt${k.zum?`, nach meiner Berechnung zum ${fd(k.zum)}`:''}.\n\nBitte bestätigen Sie mir die Kündigung und das Vertragsende schriftlich. Einer Weiterverwendung meiner Daten zu Werbezwecken widerspreche ich.\n\nMit freundlichen Grüßen\n\n\n\n______________________________\n${s.name||'[Name]'}`;
+ modal(`<h2>Kündigung ${esc(v.anbieter)}</h2><textarea id="k_t" rows="14"></textarea>
+ <div class="row">${v.email?'<a class="btn pri" id="k_m" target="_blank" rel="noopener">Per E-Mail</a>':''}<button id="k_p">Als PDF</button><button id="k_c">Kopieren</button><button id="k_d">Als gekündigt markieren</button></div>
+ <p class="note">Viele Anbieter haben auf ihrer Webseite einen Kündigungsbutton – das ist oft der schnellste Weg. Bewahre die Bestätigung auf.</p>`);
+ $('#k_t').value=body;const m=$('#k_m');const sy=()=>{if(m)m.href=mailto(v.email,'',`Kündigung${v.nr?' '+v.nr:''}`,$('#k_t').value)};$('#k_t').oninput=sy;sy();
+ $('#k_c').onclick=()=>copy($('#k_t').value);$('#k_p').onclick=()=>letterPdf(`Kuendigung-${v.anbieter.replace(/[^\w-]/g,'_')}.pdf`,`${v.anbieter}\n${v.adr||''}`,$('#k_t').value);
+ $('#k_d').onclick=async()=>{await put({...v,gekuendigt:today()});closeModal();toast('Als gekündigt markiert');vVertraege()}}
+
+/* ---------- Bewerbungen ---------- */
+const BW_DEF=`{Ort}, den {Datum}
+
+Bewerbung als {Stelle}
+
+{Anrede}
+
+mit großem Interesse habe ich Ihre Stellenanzeige gelesen und bewerbe mich hiermit als {Stelle} bei {Firma}.
+
+{Satz}
+
+Ich bringe Zuverlässigkeit, Pünktlichkeit und einen freundlichen Umgang mit Menschen mit. Ich arbeite gern im Team, bin belastbar und flexibel einsetzbar.
+
+Über eine Einladung zu einem persönlichen Gespräch freue ich mich sehr.
+
+Mit freundlichen Grüßen
+
+{Name}`;
+const anrede=a=>/^frau\b/i.test(a||'')?`Sehr geehrte ${a.trim()},`:/^herr\b/i.test(a||'')?`Sehr geehrter ${a.trim().replace(/^herr\b/i,'Herr')},`:'Sehr geehrte Damen und Herren,';
+function bwText(w,pr){const s=ST();return(pr.vorlage||BW_DEF).replace(/\{Ort\}/g,(s.adresse||'').split('\n').pop().replace(/^\d{5}\s*/,'')||'').replace(/\{Datum\}/g,fd(today())).replace(/\{Stelle\}/g,w.stelle||pr.stelle||'').replace(/\{Firma\}/g,w.firma).replace(/\{Anrede\}/g,anrede(w.ansprech)).replace(/\{Satz\}\n?/g,w.satz?w.satz+'\n':'').replace(/\{Name\}/g,s.name||'')+(pr.tel||pr.mail?`\n${[pr.tel,pr.mail].filter(Boolean).join(' · ')}`:'')}
+const BST=[['offen','Noch nicht gesendet'],['gesendet','Gesendet'],['antwort','Antwort erhalten'],['gespraech','Gespräch'],['zusage','Zusage'],['absage','Absage']];
+function vBewerb(){const pr=one('bwprofil',{vorlage:BW_DEF,cv:[]}),L=ofKind('bewerbung').sort((a,b)=>(b.created||'').localeCompare(a.created||''));
+ shell(`${back()}<h1 style="margin-top:12px">Bewerbungen</h1>
+ <details class="card"${(pr.cv||[]).length?'':' open'}><summary>Meine Unterlagen & Vorlage</summary>
+  <div class="grid2">${field('bp_s','Gesuchte Stelle (Standard)',pr.stelle)}${field('bp_t','Telefon',pr.tel,'tel')}${field('bp_m','E-Mail',pr.mail,'email')}</div>
+  <label>Anhänge (Lebenslauf, Zeugnisse, Führerschein)</label><div class="thumbs">${(pr.cv||[]).map((f,i)=>`<span class="badge">${esc(f.name)} <button class="ghost" data-cvd="${i}" aria-label="Entfernen" style="min-height:24px;padding:0 4px">✕</button></span>`).join('')||'<span class="note">Noch keine</span>'}</div>
+  <div class="row"><label class="btn" for="bp_f">+ Anhang (PDF oder Foto)</label><input id="bp_f" class="vh" type="file" accept="application/pdf,image/*" multiple></div>
+  <label for="bp_v">Anschreiben-Vorlage</label><p class="note">Platzhalter: {Firma} {Stelle} {Anrede} {Satz} {Name} {Ort} {Datum}</p><textarea id="bp_v" rows="12">${esc(pr.vorlage||BW_DEF)}</textarea>
+  <div class="row"><button class="pri" id="bp_ok">Speichern</button></div></details>
+ <form id="bw" class="card"><h3>Firma hinzufügen</h3><div class="grid2">${field('w_f','Firma')}${field('w_s','Stelle',pr.stelle)}${field('w_a','Ansprechpartner (z. B. Frau Müller)')}${field('w_m','E-Mail für Bewerbungen','','email')}</div>
+  <label for="w_x">Persönlicher Satz zu dieser Firma</label><textarea id="w_x" rows="2" placeholder="Warum gerade diese Firma? (z. B. Nähe, Fahrzeuge, Arbeitszeiten)"></textarea><label for="w_d">Anschrift</label><textarea id="w_d" rows="2"></textarea><div class="row"><button class="pri">Hinzufügen</button></div></form>
+ <h2>Meine Bewerbungen (${L.length})</h2>
+ ${L.map(w=>`<div class="card"><div class="hd2"><h3>${esc(w.firma)}</h3><span class="badge ${w.status==='zusage'?'b-verf':w.status==='absage'?'b-alt':''}">${esc((BST.find(x=>x[0]===w.status)||BST[0])[1])}</span></div>
+  <p class="note">${esc(w.stelle||'')}${w.gesendet?' · gesendet '+fd(w.gesendet):''}${!w.satz?' · <span style="color:var(--warn)">persönlicher Satz fehlt</span>':''}</p>
+  <div class="row"><button class="pri" data-ws="${w.id}">${w.status==='offen'||!w.status?'Bewerbung senden':'Erneut senden'}</button><select data-wst="${w.id}" aria-label="Status" style="width:auto">${BST.map(([k,l])=>`<option value="${k}" ${w.status===k?'selected':''}>${l}</option>`).join('')}</select><button class="ghost" data-wd="${w.id}">Löschen</button></div></div>`).join('')||'<p class="note">Noch keine Firmen.</p>'}`);bindGo();
+ const savePr=async o=>{Object.assign(pr,o);await put({...pr})};
+ $('#bp_ok').onclick=async()=>{await savePr({stelle:val('bp_s'),tel:val('bp_t'),mail:val('bp_m'),vorlage:$('#bp_v').value});toast('Gespeichert')};
+ $('#bp_f').onchange=async e=>{const fl=[...e.target.files];e.target.value='';toast('Wird verschlüsselt …');const cv=[...(pr.cv||[])];for(const f of fl){try{const pf=await prep(f);pf.name=f.name||pf.name;cv.push(await storeFile(pf))}catch(err){toast(err.message)}}await savePr({cv});vBewerb()};
+ $$('[data-cvd]').forEach(b=>b.onclick=async()=>{const cv=[...pr.cv];const[f]=cv.splice(+b.dataset.cvd,1);await dropFile(f);await savePr({cv});vBewerb()});
+ $('#bw').onsubmit=async e=>{e.preventDefault();if(!val('w_f'))return toast('Firma eintragen');if(!val('w_s'))return toast('Stelle eintragen');await put({id:nid(),kind:'bewerbung',created:new Date().toISOString(),firma:val('w_f'),stelle:val('w_s'),ansprech:val('w_a'),email:val('w_m'),satz:$('#w_x').value.trim(),adr:$('#w_d').value.trim(),status:'offen'});vBewerb()};
+ $$('[data-wst]').forEach(sel=>sel.onchange=async()=>{const w={...E.get(sel.dataset.wst),status:sel.value};if(sel.value==='gesendet'&&!w.gesendet)w.gesendet=today();await put(w);vBewerb()});
+ $$('[data-wd]').forEach(b=>b.onclick=async()=>{if(await ask('Bewerbung löschen?','Löschen',true)){await del(b.dataset.wd);vBewerb()}});
+ $$('[data-ws]').forEach(b=>b.onclick=()=>sendBw(E.get(b.dataset.ws),pr))}
+function sendBw(w,pr){const s=ST(),body=bwText(w,pr),subj=`Bewerbung als ${w.stelle||pr.stelle||''} – ${s.name||''}`;
+ modal(`<h2>Bewerbung an ${esc(w.firma)}</h2><label for="bs_t">Anschreiben</label><textarea id="bs_t" rows="14"></textarea>
+ <div class="row"><button class="pri" id="bs_go">${AB?'Mit Anhängen senden':'Anschreiben als PDF'}</button><button id="bs_c">Kopieren</button></div>
+ <p class="note">${AB?`Es öffnet sich deine Mail-App mit Anschreiben-PDF${(pr.cv||[]).length?` und ${pr.cv.length} Anhängen`:''}. Senden musst du selbst.`:'Anhänge bitte in deiner Mail-App selbst hinzufügen.'}</p>`);
+ $('#bs_t').value=body;$('#bs_c').onclick=()=>copy($('#bs_t').value);
+ $('#bs_go').onclick=async e=>{busy(e.target,true,'Wird vorbereitet …');const pdf=letterBytes(`${w.firma}\n${w.ansprech||''}\n${w.adr||''}`.replace(/\n+/g,'\n').trim(),$('#bs_t').value);const fn=`Anschreiben-${w.firma.replace(/[^\w-]/g,'_')}.pdf`;
+  try{if(AB&&AB.shareMail){const att=[{n:fn,t:'application/pdf',d:b64(pdf)}];for(const f of pr.cv||[])att.push({n:f.type==='application/pdf'?f.name.replace(/(\.pdf)?$/i,'.pdf'):f.name.replace(/\.\w+$/,'')+'.jpg',t:f.type,d:b64(await loadFile(f))});
+    AB.shareMail(w.email||'',subj,`${anrede(w.ansprech)}\n\nanbei sende ich Ihnen meine Bewerbungsunterlagen für die Stelle als ${w.stelle||pr.stelle||''}.\n\nMit freundlichen Grüßen\n${s.name||''}${pr.tel?'\n'+pr.tel:''}`,JSON.stringify(att))}
+   else await save(fn,pdf);
+   await put({...E.get(w.id),status:'gesendet',gesendet:today()});closeModal();vBewerb()}catch(err){toast('Fehler: '+err.message);busy(e.target,false,'Erneut versuchen')}}}
+
+/* ---------- Papier vernichten ---------- */
+function vVernichten(){const B=ofKind('brief'),ok=B.filter(b=>(b.files||[]).length&&!mustKeep(b)&&!b.shred),keep=B.filter(b=>mustKeep(b)),none=B.filter(b=>!(b.files||[]).length&&!b.shred),gone=B.filter(b=>b.shred).length;
+ const it=(b,btns)=>`<div class="todo"><div><b>${esc(b.firma||'–')}</b><small>${esc(TYPEN[b.typ]||'')} vom ${fd(dOf(b))}${b.az?' · '+esc(b.az):''}</small></div><div class="row" style="margin:0">${btns}</div></div>`;
+ shell(`${back()}<h1 style="margin-top:12px">Papier vernichten</h1>
+ <p class="note">${mode()==='cloud'?'Deine Scans liegen verschlüsselt in der Cloud.':'<b style="color:var(--warn)">Deine Scans liegen nur auf diesem Handy</b> – speichere vorher eine Sicherung.'} Papier mit Namen oder Kontodaten in den Aktenvernichter, nicht ins Altpapier.</p>
+ <div class="figs"><div class="fig ok" style="border-color:var(--ok)"><span>Darf weg</span><b>${ok.length}</b></div><div class="fig alt"><span>Original aufheben</span><b>${keep.length}</b></div><div class="fig chk"><span>Schon vernichtet</span><b>${gone}</b></div></div>
+ <h2>Darf vernichtet werden</h2>${ok.map(b=>it(b,`<button class="pri" data-sh="${b.id}">Vernichtet</button><button class="ghost" data-kp="${b.id}">Aufheben</button>`)).join('')||'<p class="note">Nichts.</p>'}
+ <h2 style="margin-top:20px">Original aufheben</h2><p class="note">Gericht, Verfahren, Bescheide und Titel – bis zur Restschuldbefreiung aufbewahren.</p>${keep.map(b=>it(b,b.keep===true?`<button class="ghost" data-uk="${b.id}">Darf weg</button>`:'')).join('')||'<p class="note">Nichts.</p>'}
+ ${none.length?`<p class="note" style="margin-top:16px">${none.length} Schreiben ohne Foto/Scan – vor dem Vernichten erst fotografieren.</p>`:''}`);bindGo();
+ const set=async(id,o)=>{await put({...E.get(id),...o});vVernichten()};
+ $$('[data-sh]').forEach(b=>b.onclick=()=>set(b.dataset.sh,{shred:today()}));$$('[data-kp]').forEach(b=>b.onclick=()=>set(b.dataset.kp,{keep:true}));$$('[data-uk]').forEach(b=>b.onclick=()=>set(b.dataset.uk,{keep:false}))}
+
+/* ---------- Geteilte Dateien (Teilen → App) ---------- */
+function takeShared(){if(!AB||!KEY)return;let j;try{if(!AB.hasShared())return;j=JSON.parse(AB.takeShared())}catch{return}
+ const files=j.map(x=>new File([unb64(x.d)],x.n||'datei',{type:x.t||''})).filter(f=>f.size);if(files.length){go('neu',{shared:files});toast(`${files.length} Datei(en) übernommen`)}}
+window.onShared=()=>takeShared();
+
 /* ---------- Einstellungen ---------- */
 function vMehr(){const s=ST();
- shell(`<h1>Einstellungen</h1>
+ shell(`${back()}<h1 style="margin-top:12px">Einstellungen</h1>
  <form id="sf" class="card"><h2>Insolvenzverfahren</h2>
  <div class="grid2"><div><label for="s_stichtag">Eröffnung (Stichtag)</label><input id="s_stichtag" type="date" required value="${esc(s.stichtag)}"></div>
  <div><label for="s_insoAz">Aktenzeichen Insolvenzverfahren</label><input id="s_insoAz" value="${esc(s.insoAz)}" placeholder="z. B. 12 IK 345/26"></div>
@@ -618,7 +839,7 @@ function vMehr(){const s=ST();
  <div class="row"><button class="pri" id="bk">Sicherung speichern</button>${AB?'<button id="bks">Sicherung teilen (z. B. Google Drive)</button>':''}<button id="imp">Sicherung einspielen</button><input id="impF" type="file" accept=".json,application/json" hidden></div>
  <p class="note" style="margin-top:14px">Gläubigerliste als Tabelle (für Kanzlei oder Verwalter). <b>Achtung:</b> Diese Datei ist nicht verschlüsselt.</p>
  <div class="row"><button id="csv">Gläubigerliste (CSV/Excel)</button></div></div>`);
- $('#sf').onsubmit=async e=>{e.preventDefault();const o={...ST()};for(const k of ['stichtag','insoAz','insoGericht','insoGerichtAdr','verwalter','verwalterMail','verwalterAdr','kanzlei','kanzleiMail','name','adresse'])o[k]=$('#s_'+k).value.trim();await put(o);toast('Gespeichert')};
+ bindGo();$('#sf').onsubmit=async e=>{e.preventDefault();const o={...ST()};for(const k of ['stichtag','insoAz','insoGericht','insoGerichtAdr','verwalter','verwalterMail','verwalterAdr','kanzlei','kanzleiMail','name','adresse'])o[k]=$('#s_'+k).value.trim();await put(o);toast('Gespeichert')};
  $('#s_lock').onchange=async e=>{await put({...ST(),lockMin:+e.target.value});toast('Gespeichert')};
  $('#chPw').onclick=changePw;const bt=$('#bioT');if(bt)bt.onclick=()=>{if(bioOn()){bioOff();toast('Fingerabdruck ausgeschaltet');vMehr();return}
   modal(`<h2>Fingerabdruck einschalten</h2><p class="note">Zur Sicherheit einmal dein Tresor-Passwort eingeben.</p><label for="o1">Passwort</label><input id="o1" type="password" autocomplete="current-password"><div class="row"><button class="pri" id="go">Weiter</button></div>`);
@@ -676,13 +897,13 @@ async function bioEnableWith(raw){const r=await bioCall('bioEnable',b64(raw));ra
 async function bioUnlock(){const r=await bioCall('bioUnlock');
  if(r.startsWith('OK:')){const raw=unb64(r.slice(3));KEY=await aesKey(raw);raw.fill(0);
   if(!await keyOk()){KEY=null;bioOff();return showLock('Der Fingerabdruck passt nicht mehr zu diesem Tresor. Bitte mit Passwort entsperren und neu einrichten.')}
-  try{fails=0;await loadAll();armLock();go('home')}catch(err){KEY=null;if(err.code==='auth')return cloudLogin();toast('Daten nicht erreichbar: '+err.message,5000)}}
+  try{fails=0;await loadAll();armLock();go('home');takeShared()}catch(err){KEY=null;if(err.code==='auth')return cloudLogin();toast('Daten nicht erreichbar: '+err.message,5000)}}
  else if(r==='INVALID')showLock('Fingerabdrücke im Handy wurden geändert. Bitte einmal mit Passwort entsperren und den Fingerabdruck neu einrichten.');
  else if(r!=='CANCEL')toast('Fingerabdruck nicht möglich: '+r.replace(/^FEHLER:/,''),5000)}
 function showLock(msg=''){KEY=null;E.clear();closeModal();
  lockScreen(`<h1>Mein Daten-Digitalisierer</h1>${msg?`<p class="note">${esc(msg)}</p>`:''}${bioOn()?'<div class="row" style="margin:0 0 8px"><button type="button" class="pri" id="bioB" style="flex:1">Mit Fingerabdruck entsperren</button></div><p class="note">oder mit Passwort:</p>':''}${!bioOn()&&bioCan()?'<p class="note">Nach dem Entsperren kannst du den Fingerabdruck einschalten (Einstellungen › Sicherheit).</p>':''}<form id="lf"><label for="pw">Passwort</label><input id="pw" type="password" autocomplete="current-password" ${bioOn()?'':'autofocus'}><div class="row"><button class="pri" id="ub">Entsperren</button><button type="button" class="ghost" id="rc">Passwort vergessen?</button></div></form>`);
  $('#lf').onsubmit=async e=>{e.preventDefault();if(Date.now()<blockUntil)return toast(`Zu viele Versuche – bitte ${Math.ceil((blockUntil-Date.now())/1000)} s warten`);busy($('#ub'),true,'Entschlüssele …');
-  try{const raw=await rawFromPw($('#pw').value);KEY=await aesKey(raw);fails=0;await loadAll();await ensureChk();armLock();go('home');
+  try{const raw=await rawFromPw($('#pw').value);KEY=await aesKey(raw);fails=0;await loadAll();await ensureChk();armLock();go('home');takeShared();
    if(bioCan()&&!bioOn()&&!LS.get('bioAsked2')){LS.set('bioAsked2','1');const copyRaw=raw.slice();raw.fill(0);
     if(await ask('Künftig mit Fingerabdruck entsperren? Dein Passwort bleibt trotzdem gültig.','Ja, einrichten'))await bioEnableWith(copyRaw);else copyRaw.fill(0)}else raw.fill(0)}
   catch(err){if(KEY){KEY=null;if(err.code==='auth')return cloudLogin();toast('Daten nicht erreichbar: '+err.message,5000)}else{fails++;if(fails>=5)blockUntil=Date.now()+30000*2**(fails-5);toast('Passwort falsch')}busy($('#ub'),false,'Entsperren')}};
@@ -690,7 +911,7 @@ function showLock(msg=''){KEY=null;E.clear();closeModal();
  $('#rc').onclick=()=>{lockScreen(`<h1>Mit Notfall-Code entsperren</h1><form id="rf"><label for="cd">Notfall-Code</label><input id="cd" autocomplete="off" placeholder="XXXXX-XXXXX-XXXXX-XXXXX-XXXXX">${pwFields()}<div class="row"><button class="pri" id="rb">Entsperren & neues Passwort setzen</button><button type="button" class="ghost" id="bk2">Zurück</button></div></form>`);bindMeter();
   $('#bk2').onclick=()=>showLock();
   $('#rf').onsubmit=async e=>{e.preventDefault();const nw=checkNew();if(!nw)return;busy($('#rb'),true,'Prüfe …');
-   try{const raw=await unseal(await kdf(normCode($('#cd').value),unb64(META.saltR),META.iter),META.wr);const salt=rnd(16);const wp=await seal(await kdf(nw,salt,ITER),raw);KEY=await aesKey(raw);raw.fill(0);await writeMeta({...META,salt:b64(salt),iter:ITER,wp});await loadAll();armLock();go('home');toast('Neues Passwort gesetzt')}
+   try{const raw=await unseal(await kdf(normCode($('#cd').value),unb64(META.saltR),META.iter),META.wr);const salt=rnd(16);const wp=await seal(await kdf(nw,salt,ITER),raw);KEY=await aesKey(raw);raw.fill(0);await writeMeta({...META,salt:b64(salt),iter:ITER,wp});await loadAll();armLock();go('home');takeShared();toast('Neues Passwort gesetzt')}
    catch{KEY=null;toast('Code falsch oder keine Verbindung');busy($('#rb'),false,'Entsperren & neues Passwort setzen')}}}}
 function lock(){showLock('Gesperrt. Deine Daten sind verschlüsselt.')}
 let armed=false;function armLock(){lastAct=Date.now();if(armed)return;armed=true;
@@ -731,7 +952,7 @@ async function boot(){
  const m=mode();if(!m)return chooseStore();
  if(m==='cloud'){if(!Cloud.cfg())return cloudSetup();try{await Cloud.token()}catch(e){return e.code==='auth'?cloudLogin():offline(e)}}
  try{META=(await B().get('meta','vault'))||null;META?.wp?showLock():showSetup()}catch(e){e.code==='auth'?cloudLogin():offline(e)}}
-window.appBack=()=>{if($('#modal').innerHTML){closeModal();return true}if(KEY&&view.v!=='home'){go(view.v==='akte'?'akten':'home');return true}return false};
+window.appBack=()=>{if($('#modal').innerHTML){closeModal();return true}if(KEY&&view.v!=='home'){go(view.v==='akte'?'akten':HUBV.includes(view.v)&&view.v!=='hub'?'hub':'home');return true}return false};
 setTimeout(boot,0);
 }
 </script>
