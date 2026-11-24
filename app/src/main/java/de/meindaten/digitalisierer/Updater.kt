@@ -99,6 +99,8 @@ object Updater {
             return Result.Failed("Keine Verbindung zu GitHub")
         } ?: return Result.Failed("Keine Version auf GitHub gefunden")
         if (rel.versionCode <= installedVersion(ctx)) return Result.UpToDate
+        if (!ctx.packageManager.canRequestPackageInstalls())
+            return Result.Failed("Installieren aus dieser Quelle ist nicht erlaubt")
         return try {
             val apk = download(ctx, rel.apkUrl)
             install(ctx, apk)

@@ -311,6 +311,13 @@ class MainActivity : FragmentActivity() {
 
         @JavascriptInterface
         fun checkUpdate() {
+            if (!packageManager.canRequestPackageInstalls()) {
+                toast("Bitte \"Aus dieser Quelle zulassen\" einschalten und danach erneut nach Updates suchen")
+                runCatching {
+                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                }
+                return
+            }
             lifecycleScope.launch {
                 when (val r = Updater.checkAndInstall(this@MainActivity)) {
                     is Updater.Result.UpToDate -> toast("Du hast schon die neueste Version")
