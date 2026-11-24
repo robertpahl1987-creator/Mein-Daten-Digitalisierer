@@ -43,17 +43,16 @@ object Bio {
             val c = Cipher.getInstance("AES/GCM/NoPadding")
             c.init(Cipher.ENCRYPT_MODE, newKey())
             prompt(act, c, "Fingerabdruck einrichten", { ok ->
-                val ct = ok.doFinal(raw)
+                val ct = try { ok.doFinal(raw) } finally { raw.fill(0) }
                 prefs(act).edit()
                     .putString("iv", Base64.encodeToString(ok.iv, Base64.NO_WRAP))
                     .putString("ct", Base64.encodeToString(ct, Base64.NO_WRAP))
                     .apply()
                 done("OK")
-            }, done)
+            }, { r -> raw.fill(0); done(r) })
         } catch (e: Exception) {
-            done("FEHLER:${e.message}")
-        } finally {
             raw.fill(0)
+            done("FEHLER:${e.message}")
         }
     }
 
