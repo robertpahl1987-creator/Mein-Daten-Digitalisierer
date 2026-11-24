@@ -58,4 +58,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     // Texterkennung direkt auf dem Handy (offline, nichts wird hochgeladen)
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    // Dokumenten-Scanner: mehrere Seiten, automatische Kantenerkennung
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
 }

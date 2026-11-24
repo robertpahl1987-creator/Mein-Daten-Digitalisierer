@@ -94,6 +94,9 @@ details.card>summary{font-weight:600;cursor:pointer;min-height:32px;list-style-p
 .savebar{position:sticky;bottom:64px;background:var(--bg);padding:10px 0;display:flex;gap:8px;z-index:4}
 .savebar .pri{flex:1}
 @media(min-width:900px){.savebar{bottom:0}}
+.seg{display:flex;gap:0;margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;overflow:hidden}.seg button{flex:1;border:0;border-radius:0;min-height:40px;font-size:14px}.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+details.grp{margin:14px 0 4px}details.grp>summary{cursor:pointer;font-size:17px;padding:6px 0;border-bottom:1px solid var(--line)}
+button.pick{width:100%;font:inherit}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -110,7 +113,9 @@ const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
 const nid=()=>Array.from(rnd(12),x=>x.toString(16).padStart(2,'0')).join('');
 const ITER=600000,CH=180000;
-const ROLLEN={glaeubiger:'Gläubiger (Firma)',inkasso:'Inkassobüro',anwalt:'Anwalt des Gläubigers',gericht:'Gericht',gv:'Gerichtsvollzieher',verfahren:'Eigenes Verfahren (Insolvenzgericht, Verwalter, Kanzlei)',behoerde:'Behörde / Amt',sonst:'Sonstige'};
+const ROLLEN={insogericht:'Insolvenzgericht',verwalter:'Insolvenzverwalter / Treuhänder',kanzlei:'Meine Kanzlei',gericht:'Anderes Gericht (Mahngericht usw.)',gv:'Gerichtsvollzieher',anwalt:'Anwalt des Gläubigers',inkasso:'Inkassobüro',glaeubiger:'Gläubiger (Firma)',behoerde:'Behörde / Amt',verfahren:'Eigenes Verfahren (sonstiges)',sonst:'Sonstige'};
+const GRUPPEN=[['insogericht','Insolvenzgericht'],['verwalter','Insolvenzverwalter'],['kanzlei','Meine Kanzlei'],['verfahren','Eigenes Verfahren'],['gericht','Andere Gerichte'],['gv','Gerichtsvollzieher'],['anwalt','Anwälte der Gläubiger'],['inkasso','Inkassobüros'],['glaeubiger','Gläubiger / Firmen'],['behoerde','Behörden & Ämter'],['sonst','Sonstige']];
+const VERF=new Set(['verfahren','insogericht','verwalter','kanzlei']);
 const TYPEN={rechnung:'Rechnung',mahnung:'Mahnung / Zahlungsaufforderung',mahnbescheid:'Mahnbescheid',vb:'Vollstreckungsbescheid',pfaendung:'Pfändung / Vollstreckungsmaßnahme',klage:'Klage / Ladung / sonstiges Gerichtsschreiben',info:'Information / Sonstiges'};
 const GT=new Set(['mahnbescheid','vb','pfaendung','klage']);
 const KL={alt:'Alt-Forderung',neu:'Neu · selbst zahlen',gemischt:'Alt + Neu gemischt','?':'Prüfen',verf:'Eigenes Verfahren',teil:'Geteilt'};
@@ -178,6 +183,9 @@ async function loadFile(f){let c='';for(let i=0;i<f.n;i++){const d=await B().get
 async function dropFile(f){for(let i=0;i<f.n;i++)await serial(()=>B().del('blobs',f.fid+'_'+i))}
 /* Texterkennung direkt auf dem Handy (nur in der App) */
 const ocrWait=new Map();window.__ocrDone=(id,t)=>{const f=ocrWait.get(id);if(f){ocrWait.delete(id);f(String(t||''))}};
+const scanWait=new Map();window.__scanDone=(id,j)=>{const f=scanWait.get(id);if(f){scanWait.delete(id);f(j)}};
+const scanOk=()=>{try{return!!AB&&AB.scanAvailable()}catch{return false}};
+const scanPages=()=>new Promise(res=>{const id=nid();scanWait.set(id,r=>{if(r==='CANCEL')return res(null);try{res(JSON.parse(r).map(b=>unb64(b)))}catch{res([])}});try{AB.scan(id)}catch{scanWait.delete(id);res([])}});
 async function ocrDoc(pf){const r=await ocr(pf.ocrBytes||pf.bytes,pf.type);if(!r||r.startsWith('FEHLER'))return null;try{const j=JSON.parse(r);return j&&typeof j==='object'?j:{text:r}}catch{return{text:r}}}
 const ocr=(bytes,type)=>new Promise(res=>{const id=nid();ocrWait.set(id,res);try{AB.ocr(id,b64(bytes),type)}catch(e){ocrWait.delete(id);res('')}})
 
@@ -196,8 +204,8 @@ const ST=()=>E.get('settings')||{...DEF,id:'settings'};
 const normAz=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 const dOf=b=>b.bdatum||b.rdatum||(b.created||'').slice(0,10);
 const akteKey=b=>b.akte||(normAz(b.az)?'az:'+normAz(b.az):'id:'+b.id);
-const isGer=b=>GT.has(b.typ)||b.rolle==='gericht'||b.rolle==='gv';
-function isVerf(b){const s=ST();return b.rolle==='verfahren'||(!!normAz(s.insoAz)&&normAz(b.az)===normAz(s.insoAz))}
+const isGer=b=>GT.has(b.typ)||b.rolle==='gericht'||b.rolle==='gv'||b.rolle==='insogericht';
+function isVerf(b){const s=ST();return VERF.has(b.rolle)||(!!normAz(s.insoAz)&&normAz(b.az)===normAz(s.insoAz))}
 function classB(b){const st=ST().stichtag;if(isVerf(b))return{k:'verf',why:'Schreiben aus dem eigenen Verfahren'};
  const von=b.lvon||b.lbis,bis=b.lbis||b.lvon;
  if(von){if(bis<st)return{k:'alt',why:'Leistung vor dem Stichtag'};if(von>=st)return{k:'neu',why:'Leistung ab dem Stichtag'};const tot=dd(von,bis)+1,a=dd(von,st);return{k:'teil',a:a/tot,why:`${a} von ${tot} Tagen liegen vor dem Stichtag`}}
@@ -257,10 +265,10 @@ function shell(inner){
 function go(v,extra={}){view={v,...extra};closeModal();render()}
 function render(){if(!KEY)return;({home:vHome,akten:vAkten,akte:vAkte,neu:vNeu,mehr:vMehr}[view.v]||vHome)()}
 const badge=k=>`<span class="badge b-${KC[k]||'q'}">${esc(KL[k]||k)}</span>`;
-function akteCard(a){const amount=a.k==='neu'?a.offen:a.k==='gemischt'?a.alt+a.offen:a.alt;
+function akteCard(a){const rl=ROLLEN[a.neuest.rolle]||'';const amount=a.k==='neu'?a.offen:a.k==='gemischt'?a.alt+a.offen:a.alt;
  const neuNach=dOf(a.neuest)>=ST().stichtag&&a.k!=='neu'&&a.k!=='verf';
  return `<button class="akte k-${KC[a.k]}" data-akte="${esc(a.key)}"><div class="ln">${badge(a.k)}${a.done?'<span class="badge">erledigt</span>':''}<span>neuestes: ${fd(dOf(a.neuest))}${neuNach?' · <b style="color:var(--alt)">nach Stichtag</b>':''}</span></div>
- <strong>${esc(a.glaeubiger)}</strong>${a.aktuell&&a.aktuell!==a.glaeubiger?`<div class="note">jetzt bei: ${esc(a.aktuell)}</div>`:''}
+ <strong>${esc(a.glaeubiger)}</strong>${!grp&&rl?`<div class="note">${esc(rl)}</div>`:''}${a.aktuell&&a.aktuell!==a.glaeubiger?`<div class="note">jetzt bei: ${esc(a.aktuell)}</div>`:''}
  <div class="ln"><span>${a.az?'Az. '+esc(a.az):'ohne Aktenzeichen'} · ${a.briefe.length} Schreiben</span><span class="num">${amount?eur(amount):''}</span></div></button>`}
 
 /* ---------- Übersicht ---------- */
@@ -286,12 +294,18 @@ function vHome(){const s=ST(),A=akten(),T=todos(A);
  $$('[data-do]').forEach(b=>b.onclick=()=>{const br=E.get(b.dataset.b);b.dataset.do==='gericht'?courtModal(br):mailModal(br)})}
 
 /* ---------- Akten-Liste ---------- */
+let grp=(()=>{try{return localStorage.getItem('grp')!=='0'}catch{return true}})();
+const rolleOf=a=>a.neuest.rolle&&ROLLEN[a.neuest.rolle]?a.neuest.rolle:(a.k==='verf'?'verfahren':'sonst');
+function listHtml(L,empty){if(!L.length)return `<p class="note">${empty}</p>`;if(!grp)return L.map(akteCard).join('');
+ return GRUPPEN.map(([k,l])=>{const g=L.filter(a=>rolleOf(a)===k);return g.length?`<details class="grp" open><summary><b>${l}</b> <span class="note">${g.length}</span></summary>${g.map(akteCard).join('')}</details>`:''}).join('')}
 function vAkten(){const A=akten();const F={alle:()=>true,alt:a=>a.k==='alt'||a.k==='gemischt',neu:a=>a.k==='neu'||a.k==='gemischt','?':a=>a.k==='?',ger:a=>a.ger,verf:a=>a.k==='verf',done:a=>a.done};
  const list=A.filter(F[filt]||F.alle).filter(a=>!query||a.text.includes(query.toLowerCase()));
  shell(`<h1>Akten</h1><input id="q" type="search" placeholder="Suchen: Firma, Aktenzeichen, Notiz" value="${esc(query)}" aria-label="Akten durchsuchen">
  <div class="chips">${[['alle','Alle'],['alt','Vor Stichtag'],['neu','Ab Stichtag'],['?','Prüfen'],['ger','Gericht'],['verf','Eigenes Verfahren'],['done','Erledigt']].map(([k,l])=>`<button data-f="${k}" aria-pressed="${filt===k}">${l} (${A.filter(F[k]).length})</button>`).join('')}</div>
- <div id="list">${list.length?list.map(akteCard).join(''):'<p class="note">Keine Akten in dieser Auswahl.</p>'}</div>`);
- const q=$('#q');q.oninput=()=>{query=q.value;const L=akten().filter(F[filt]||F.alle).filter(a=>!query||a.text.includes(query.toLowerCase()));$('#list').innerHTML=L.length?L.map(akteCard).join(''):'<p class="note">Nichts gefunden.</p>';$$('#list [data-akte]').forEach(b=>b.onclick=()=>go('akte',{key:b.dataset.akte}))};
+ <div class="seg" role="group" aria-label="Anzeige"><button data-g="1" aria-pressed="${grp}">Nach Absender</button><button data-g="0" aria-pressed="${!grp}">Neueste zuerst</button></div>
+ <div id="list">${listHtml(list,'Keine Akten in dieser Auswahl.')}</div>`);
+ $$('[data-g]').forEach(b=>b.onclick=()=>{grp=b.dataset.g==='1';try{localStorage.setItem('grp',grp?'1':'0')}catch{};vAkten()});
+ const q=$('#q');q.oninput=()=>{query=q.value;const L=akten().filter(F[filt]||F.alle).filter(a=>!query||a.text.includes(query.toLowerCase()));$('#list').innerHTML=listHtml(L,'Nichts gefunden.');$$('#list [data-akte]').forEach(b=>b.onclick=()=>go('akte',{key:b.dataset.akte}))};
  $$('[data-f]').forEach(b=>b.onclick=()=>{filt=b.dataset.f;vAkten()})}
 
 /* ---------- Akte ---------- */
@@ -398,7 +412,9 @@ function parseRows(rows){const R={found:[]},s=ST(),t=rowsText(rows),lc=t.toLower
  R.adr=adr.trim();
  // Art + Rolle
  R.typ=/vollstreckungsbescheid/.test(lc)?'vb':/mahnbescheid/.test(lc)?'mahnbescheid':/(pf(ä|ae)ndungs|überweisungsbeschluss|vorpf(ä|ae)ndung|vollstreckungsauftrag|verm(ö|oe)gensauskunft)/.test(lc)?'pfaendung':/(klageschrift|klage\b|ladung|termin zur m(ü|ue)ndlichen)/.test(lc)?'klage':/(mahnung|zahlungserinnerung|zahlungsaufforderung|letzte aufforderung|forderungsaufstellung|mahnstufe)/.test(lc)?'mahnung':/(rechnung|abrechnung|beitragsrechnung)/.test(lc)?'rechnung':'info';
- R.rolle=/(insolvenzverwalter|treuh(ä|ae)nder|insolvenzgericht|insolvenzverfahren (über|ueber) das verm(ö|oe)gen)/.test(lc)?'verfahren':/gerichtsvollzieher/.test(lc)?'gv':/(amtsgericht|landgericht|mahngericht)/.test(lc)?'gericht':INKASSO.test(lc)?'inkasso':/(rechtsanw(ä|a)lt|kanzlei|\brae\b)/.test(lc)?'anwalt':/(finanzamt|jobcenter|bezirksamt|agentur f(ü|ue)r arbeit)/.test(lc)?'behoerde':'glaeubiger';
+ const kz=(s.kanzlei||'').toLowerCase().split(/[\s,&]+/).filter(w=>w.length>3&&!/(partner|gesellschaft|rechtsanw|kanzlei|mbb|gmbh)/.test(w));
+ const hasInsAz=!!normAz(s.insoAz)&&normAz(t).includes(normAz(s.insoAz));
+ R.rolle=kz.length&&kz.some(w=>lc.includes(w))?'kanzlei':/(insolvenzverwalter|treuh(ä|ae)nder)/.test(lc)&&!/(insolvenzgericht|^\s*amtsgericht)/.test(top.map(r=>rowsText([r])).join(' ').toLowerCase().slice(0,200))?'verwalter':(/insolvenzgericht/.test(lc)||(/amtsgericht/.test(lc)&&(hasInsAz||/\bik\b|insolvenzverfahren/.test(lc))))?'insogericht':/(insolvenzverfahren (über|ueber) das verm(ö|oe)gen)/.test(lc)?'verfahren':/gerichtsvollzieher/.test(lc)?'gv':/(amtsgericht|landgericht|mahngericht)/.test(lc)?'gericht':INKASSO.test(lc)?'inkasso':/(rechtsanw(ä|a)lt|kanzlei|\brae\b)/.test(lc)?'anwalt':/(finanzamt|jobcenter|bezirksamt|agentur f(ü|ue)r arbeit)/.test(lc)?'behoerde':'glaeubiger';
  if((R.rolle==='inkasso'||R.rolle==='anwalt')&&R.typ==='rechnung')R.typ='mahnung';
  for(const k of ['firma','typ','az','bdatum','betrag','faellig','rdatum','lvon','zust','email','adr'])if(R[k]&&!(k==='typ'&&R[k]==='info'))R.found.push(k);
  R.text=t;return R}
@@ -410,7 +426,7 @@ function vNeu(){const ed=view.edit?E.get(view.edit):null,b=ed||{...(view.preset|
  const sel=b.akte||(ed?akteKey(ed):'');
  const inp=(id,label,type='text',extra='')=>`<div class="fld"><label for="f_${id}">${label}<span class="tag" id="t_${id}"></span></label><input id="f_${id}" type="${type}" ${extra} value="${esc(id==='betrag'?(b.betrag?String(b.betrag).replace('.',','):''):b[id])}"></div>`;
  shell(`<h1>${ed?'Schreiben bearbeiten':'Schreiben erfassen'}</h1>
- ${ed?'':`<div class="card pickc"><label class="pick" for="fl"><b>Brief fotografieren</b><span>oder Foto / PDF auswählen · mehrere Seiten möglich</span></label><input id="fl" class="vh" type="file" accept="image/*,application/pdf" multiple>
+ ${ed?'':`<div class="card pickc">${scanOk()?`<button type="button" class="pick" id="scanB"><b>Seiten scannen</b><span>mehrere Seiten hintereinander · Ränder werden automatisch begradigt</span></button><label class="btn" for="fl" style="margin-top:8px;width:100%">Foto oder PDF aus der Galerie</label>`:`<label class="pick" for="fl"><b>Brief fotografieren</b><span>oder Foto / PDF auswählen · mehrere Seiten möglich</span></label>`}<input id="fl" class="vh" type="file" accept="image/*,application/pdf" multiple>
   <div class="thumbs" id="pv"></div><p class="note" id="flInfo" aria-live="polite"></p></div>`}
  <form id="bf">
  <div class="card"><div class="hd2"><h3>Das Wichtigste</h3><span id="prevBadge"></span></div><p class="note" id="prevWhy"></p>
@@ -448,14 +464,18 @@ function vNeu(){const ed=view.edit?E.get(view.edit):null,b=ed||{...(view.preset|
   if(R.nummern&&!F('notiz').value)F('notiz').value=R.nummern;
   const miss=['firma','az','bdatum','betrag'].filter(k=>!R[k]).map(k=>FL[k]);
   $('#flInfo').innerHTML=`<b>Erkannt:</b> ${R.found.map(k=>FL[k]).join(', ')||'nichts'}${miss.length?`<br><b style="color:var(--warn)">Bitte prüfen:</b> ${miss.join(', ')}`:''}`;upd()};
- const fl=$('#fl');if(fl)fl.onchange=async()=>{const list=[...fl.files];fl.value='';if(!list.length)return;const info=$('#flInfo');
+ const addFiles=async list=>{if(!list.length)return;const info=$('#flInfo');
   for(const[i,f]of list.entries()){info.textContent=`Bereite Seite ${files.length+1} vor …`;try{const pf=await prep(f,!!AB);files.push(pf);
    if(pf.type.startsWith('image/')){const u=URL.createObjectURL(new Blob([pf.bytes],{type:pf.type}));$('#pv').insertAdjacentHTML('beforeend',`<img src="${u}" alt="Seite ${files.length}">`)}else $('#pv').insertAdjacentHTML('beforeend',`<span class="badge">PDF ${files.length}</span>`)}catch(e){toast(e.message)}}
-  $('.pick b').textContent='Weitere Seite hinzufügen';
+  const pk=$('.pick b');if(pk)pk.textContent=scanOk()?'Weitere Seiten scannen':'Weitere Seite hinzufügen';
   if(AB){for(const pf of files.slice(docs.length)){info.textContent=`Lese Seite ${docs.length+1} …`;docs.push(await ocrDoc(pf))}
    const rows=[];let off=0;for(const d of docs){if(!d)continue;const rs=d.lines?.length?toRows(d.lines):rowsFromText(d.text||'');rs.forEach(r=>{r.cy+=off;rows.push(r)});off+=1e6}
    if(rows.length){const R=parseRows(rows);$('#txt').value=R.text;apply(R)}else info.textContent='Kein Text erkannt – bitte die Felder selbst ausfüllen.'}
   else{docs=files.map(()=>null);info.textContent=`${files.length} Seite(n) bereit. Text ggf. unter „Erkannter Text“ einfügen.`}};
+ const fl=$('#fl');if(fl)fl.onchange=()=>{const list=[...fl.files];fl.value='';addFiles(list)};
+ const sb=$('#scanB');if(sb)sb.onclick=async()=>{busy(sb,true);$('#flInfo').textContent='Scanner wird geöffnet …';const pages=await scanPages();busy(sb,false);
+  if(pages===null){$('#flInfo').textContent='';return}if(!pages.length){$('#flInfo').textContent='Scanner nicht verfügbar – bitte „Foto oder PDF aus der Galerie“ nutzen.';return}
+  addFiles(pages.map((u8,i)=>new File([u8],`seite-${files.length+i+1}.jpg`,{type:'image/jpeg'})))};
  const pb=$('#parse');if(pb)pb.onclick=()=>{const t=$('#txt').value;if(!t.trim())return toast('Bitte zuerst Text einfügen');docs=docs.length?docs:[null];apply(parseText(t))};
  const cc=$('[data-cancel]');if(cc)cc.onclick=()=>go('akte',{key:akteKey(ed)});
  $('#bf').onsubmit=async e=>{e.preventDefault();const o=read();if(!o.firma){F('firma').focus();return toast('Bitte Absender eintragen')}const btn=$('#sv');busy(btn,true,'Wird verschlüsselt …');

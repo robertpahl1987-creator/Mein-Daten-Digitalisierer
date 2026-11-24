@@ -23,7 +23,14 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import org.json.JSONArray
 import androidx.core.content.FileProvider
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
@@ -54,6 +61,29 @@ class MainActivity : FragmentActivity() {
             if (f != null && u != null && f.exists() && f.length() > 0) uris.add(u)
         }
         cb.onReceiveValue(if (uris.isEmpty()) null else uris.toTypedArray())
+    }
+
+    private var scanId: String? = null
+
+    private val scanLauncher = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { res ->
+        val id = scanId ?: return@registerForActivityResult
+        scanId = null
+        if (res.resultCode != RESULT_OK) { scanDone(id, "CANCEL"); return@registerForActivityResult }
+        val pages = GmsDocumentScanningResult.fromActivityResultIntent(res.data)?.pages.orEmpty()
+        lifecycleScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                val arr = JSONArray()
+                for (p in pages) runCatching {
+                    contentResolver.openInputStream(p.imageUri)?.use { arr.put(Base64.encodeToString(it.readBytes(), Base64.NO_WRAP)) }
+                }
+                arr.toString()
+            }
+            scanDone(id, json)
+        }
+    }
+
+    private fun scanDone(id: String, r: String) = runOnUiThread {
+        web.evaluateJavascript("window.__scanDone(${JSONObject.quote(id)},${JSONObject.quote(r)})", null)
     }
 
     private val notifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -228,6 +258,29 @@ class MainActivity : FragmentActivity() {
                 web.evaluateJavascript(
                     "window.__ocrDone(${JSONObject.quote(id)},${JSONObject.quote(text)})", null
                 )
+            }
+        }
+
+        // ----- Mehrseitiger Scan -----
+        @JavascriptInterface
+        fun scanAvailable(): Boolean =
+            GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this@MainActivity) == ConnectionResult.SUCCESS
+
+        @JavascriptInterface
+        fun scan(id: String) {
+            runOnUiThread {
+                val opts = GmsDocumentScannerOptions.Builder()
+                    .setGalleryImportAllowed(true)
+                    .setPageLimit(30)
+                    .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_JPEG)
+                    .setScannerMode(GmsDocumentScannerOptions.SCANNER_MODE_FULL)
+                    .build()
+                GmsDocumentScanning.getClient(opts).getStartScanIntent(this@MainActivity)
+                    .addOnSuccessListener { sender ->
+                        scanId = id
+                        scanLauncher.launch(IntentSenderRequest.Builder(sender).build())
+                    }
+                    .addOnFailureListener { scanDone(id, "[]") }
             }
         }
 
